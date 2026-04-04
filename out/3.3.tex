@@ -1,0 +1,137 @@
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage{graphicx}                 % 插图
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题 (修正了原头文件中的标题)
+\title{3.3节 其他回归模型的考虑}
+% 设置撰写日期
+\date{\today}
+
+% 设置环境 theorem (这是用户自定义环境名，相当于一个变量)
+\newtheorem{theorem}{定理}[section]
+% 设置引理环境，直接套用theorem，后果是和定理共享编号
+\newtheorem{lemma}[theorem]{引理}
+% 设置定义环境，和定理共享编号
+\newtheorem{definition}[theorem]{定义}
+% 设置注记环境，独立编号，和节绑定
+\newtheorem{remark}{注记}[section]
+% 让公式编号的计数器前面自动加上节，比如式 (2.1)
+\numberwithin{equation}{section}
+
+% 自定义命令，专门用于实数域和复数域
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+\begin{document}
+
+\maketitle
+
+\section*{引言}
+在第三章前两节中，我们学习了多元线性回归的基本理论：模型设定、最小二乘估计、假设检验与拟合优度。然而实际数据分析中，我们常常面临更复杂的情况：预测变量可能是定性的、变量间可能存在交互作用、响应与预测变量的关系可能是非线性的，或者数据存在异方差、异常值、多重共线性等问题。本节将讨论这些实际问题的处理方法及其背后的统计思想。
+
+\section{定性预测变量}
+\label{sec:qualitative}
+
+定性变量（也称分类变量）不能直接代入回归方程，需要先转换为数值形式。最常用的方法是引入\textbf{虚拟变量}。
+
+\subsection{二水平定性变量}
+设定性变量 \(D\) 取值为 \(A\) 或 \(B\)。定义虚拟变量
+\[
+X = \begin{cases}
+1, & \text{若 } D = A,\\
+0, & \text{若 } D = B.
+\end{cases}
+\]
+则回归模型为
+\[
+Y = \beta_0 + \beta_1 X + \epsilon.
+\]
+此时 \(\beta_0\) 表示 \(D=B\) 时 \(Y\) 的期望，\(\beta_0+\beta_1\) 表示 \(D=A\) 时 \(Y\) 的期望，\(\beta_1\) 即为两组的均值差。系数 \(\beta_1\) 的 \(t\) 检验可判断两组均值是否有显著差异。
+
+\subsection{多水平定性变量}
+若变量有 \(k\) 个水平，则需引入 \(k-1\) 个虚拟变量。例如，地区变量有东、西、南三个水平，可设
+\[
+X_1 = \begin{cases}1, & \text{西}\\0, & \text{其他}\end{cases},\quad
+X_2 = \begin{cases}1, & \text{南}\\0, & \text{其他}\end{cases},
+\]
+以“东”为基准水平。模型为
+\[
+Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon.
+\]
+此时 \(\beta_0\) 为东部的均值，\(\beta_1\) 为西部与东部的均值差，\(\beta_2\) 为南部与东部的均值差。整体检验 \(H_0:\beta_1=\beta_2=0\) 可用 \(F\) 检验，判断地区是否有显著影响。
+
+\section{线性模型的扩展}
+\label{sec:extensions}
+
+标准线性模型假定可加性与线性性。当这些假定不成立时，可通过扩展模型来拟合更复杂的关系。
+
+\subsection{交互项：放松可加性}
+若两个预测变量 \(X_1\) 与 \(X_2\) 存在交互作用，即 \(X_1\) 对 \(Y\) 的效应依赖于 \(X_2\) 的取值，可引入交互项 \(X_1 X_2\)：
+\begin{equation}
+Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_1 X_2 + \epsilon.
+\label{eq:interaction}
+\end{equation}
+改写为
+\[
+Y = \beta_0 + (\beta_1 + \beta_3 X_2) X_1 + \beta_2 X_2 + \epsilon,
+\]
+可见 \(X_1\) 的斜率随 \(X_2\) 线性变化。交互项的 \(t\) 检验可判断交互效应是否显著。若显著，则需保留主效应（即使主效应系数不显著），此即\textbf{层次原则}。
+
+\subsection{多项式回归：放松线性性}
+若关系是曲线的，可引入高阶项：
+\begin{equation}
+Y = \beta_0 + \beta_1 X + \beta_2 X^2 + \beta_3 X^3 + \cdots + \beta_d X^d + \epsilon.
+\label{eq:poly}
+\end{equation}
+该模型仍为线性回归（参数线性），可用最小二乘估计。通过 \(F\) 检验可比较不同阶数模型的拟合优度。实际中常采用低阶多项式（\(d\le 3\) 或 \(4\)），以免在边界处产生剧烈振荡。
+
+\section{潜在问题与诊断}
+\label{sec:problems}
+
+实际数据可能违背经典假设，导致推断失效或预测不准确。以下列出常见问题及诊断方法。
+
+\subsection{非线性关系}
+残差图（残差对拟合值）若呈现系统模式（如U形），则暗示非线性。解决方法包括加入多项式项、使用变换（如 \(\log Y\)）或采用后面章节的非线性方法。
+
+\subsection{误差项的相关性}
+当数据来自时间序列或具有组内相关性时，误差可能相关。这会低估标准误，导致置信区间过窄、\(p\) 值过小。可通过绘制残差与时间（或顺序）的散点图来识别。若存在相关性，需使用专门的时间序列模型或混合模型。
+
+\subsection{异方差性}
+误差方差随预测变量变化（如漏斗形残差图）。此时标准误估计有偏。常用处理方法：
+\begin{itemize}
+    \item 对响应变量作变换（如 \(\log Y\) 或 \(\sqrt{Y}\)）；
+    \item 使用加权最小二乘（权重与方差倒数成正比）。
+\end{itemize}
+
+\subsection{异常值}
+异常值是指响应值 \(y_i\) 远离模型预测值的点。可通过\textbf{学生化残差}（残差除以估计标准误）识别，通常绝对值大于 3 的点视为可疑。异常值可能影响模型拟合，但若杠杆低，影响有限。处理时需检查数据记录是否正确，必要时可删除，但应谨慎。
+
+\subsection{高杠杆点}
+杠杆点指预测变量取值异常的点。杠杆统计量 \(h_i\)（帽子矩阵对角元）度量该点对拟合的影响。平均杠杆为 \((p+1)/n\)，若 \(h_i\) 远大于此值，则需关注。高杠杆点可能显著影响回归系数。
+
+\subsection{多重共线性}
+指两个或多个预测变量高度相关，导致系数估计不稳定、标准误增大。可通过以下方式检测：
+\begin{itemize}
+    \item 计算预测变量间的相关系数；
+    \item 计算\textbf{方差膨胀因子} (VIF)：
+    \[
+    \mathrm{VIF}(\hat{\beta}_j) = \frac{1}{1 - R_{X_j \mid X_{-j}}^2},
+    \]
+    其中 \(R_{X_j \mid X_{-j}}^2\) 是将 \(X_j\) 对其他所有预测变量回归得到的决定系数。VIF 大于 5 或 10 通常表明存在严重共线性。
+\end{itemize}
+解决方法：删除一个变量，或合并相关变量（如主成分分析）。
+
+\section{小结}
+本节深入探讨了回归建模中常见的数据特征与模型扩展：
+\begin{itemize}
+    \item 定性变量通过虚拟变量融入模型，系数解释为类别间的均值差异；
+    \item 通过交互项可捕捉变量间的协同效应，多项式回归可拟合非线性趋势；
+    \item 诊断工具（残差图、学生化残差、杠杆值、VIF）帮助识别模型假设违背及数据问题；
+    \item 针对不同问题（异方差、共线性等）有相应的修正方法。
+\end{itemize}
+掌握这些内容，我们就能更灵活、稳健地应用线性回归，为后续学习更复杂的统计方法打下基础。
+
+\end{document}

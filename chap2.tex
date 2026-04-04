@@ -1,0 +1,148 @@
+% UTF8 表示使用通用国际字符作为内码，ctexart 表示这是一篇中文论文
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题
+\title{《统计学习导论》学习讲义 \\ \Large 第二章：统计学习 (2.1 - 2.1.3 节)}
+% 设置撰写日期
+\author{数学学院本科生}
+\date{\today}
+
+% 设置环境 theorem
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{corollary}[theorem]{推论}
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{remark}{注记}[section]
+\numberwithin{equation}{section}
+
+% 自定义命令，专门用于实数域和复数域
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+
+\begin{document}
+
+\maketitle
+
+\section{什么是统计学习？ (What Is Statistical Learning?)}
+
+在统计学习中，我们通常会观察到一个定量的响应变量（因变量）$Y$ 和 $p$ 个不同的预测变量（自变量，或称特征）$X = (X_1, X_2, \dots, X_p)$。我们假设 $Y$ 和 $X$ 之间存在某种关系，这种关系在数学上可以被写成如下的通用形式：
+\begin{equation}
+Y = f(X) + \epsilon
+\label{eq:fundamental}
+\end{equation}
+在这里：
+\begin{itemize}
+    \item $f$ 是一个固定但\textbf{未知}的函数，它是 $X_1, \dots, X_p$ 的函数。它代表了 $X$ 提供的关于 $Y$ 的\textbf{系统性信息}（即规律）。
+    \item $\epsilon$ 是一个\textbf{随机误差项 (Random Error Term)}。它与 $X$ 独立，并且其均值（数学期望）为零，即 $E(\epsilon) = 0$。它包含了所有无法用 $X$ 解释的变异（例如遗漏的变量或纯粹的测量噪声）。
+\end{itemize}
+
+统计学习的本质，就是寻找一组方法来\textbf{估计这个未知的函数 $f$}。
+
+\subsection{对概念的几何直观理解（图 2.2 与 图 2.3 解析）}
+
+为了直观理解公式 \eqref{eq:fundamental}，书中使用了一个模拟的收入数据集（Income Data）。
+
+\textbf{1. 关于图 2.2 (二维散点图) 的解析：}
+此图展示了响应变量“收入 (Income)”与单个预测变量“受教育年限 (Years of Education)”之间的关系。
+\begin{itemize}
+    \item 图中的每一个红色数据点代表一个观测到的个体（即 $X_i$ 和对应的 $Y_i$）。
+    \item 我们可以明显观察到一种趋势：受教育年限越长，收入往往越高。这种潜在的趋势，正是我们要去寻找的 $f(X)$ 的体现。
+\end{itemize}
+
+\textbf{2. 关于图 2.3 (三维曲面图) 的解析：}
+这是统计学习中最核心的视觉概念之一。此图在图 2.2 的基础上，增加了一个输入变量“资历 (Seniority)”。
+\begin{itemize}
+    \item \textbf{蓝色曲面}：代表了\textbf{真实但未知的函数 $f(X)$}。如果世界上没有随机性，所有人的收入都会精准地落在由“教育年限”和“资历”决定的这个蓝色曲面上。
+    \item \textbf{红色数据点}：代表我们在现实中收集到的\textbf{真实观测值 $Y$}。
+    \item \textbf{垂直的黑色线段}：代表了\textbf{随机误差项 $\epsilon$}。它是红点与蓝色曲面之间的垂直距离。这解释了为什么具有相同教育和资历的两个人，其实际收入（红点）会有差异——有些在曲面上方（$\epsilon > 0$），有些在下方（$\epsilon < 0$）。
+\end{itemize}
+
+\subsection{为什么要估计 $f$？ (Why Estimate $f$?)}
+
+估计 $f$ 通常有两个主要目的：\textbf{预测 (Prediction)} 和 \textbf{推断 (Inference)}。
+
+\subsubsection{预测 (Prediction)}
+在很多情况下，我们可以获得输入 $X$，但无法轻易获得输出 $Y$。由于误差项 $\epsilon$ 的均值为 $0$，我们可以使用估计的函数 $\hat{f}$ 来预测 $Y$：
+\begin{equation}
+\hat{Y} = \hat{f}(X)
+\end{equation}
+其中，$\hat{f}$ 表示我们对真实 $f$ 的估计值，$\hat{Y}$ 表示对真实 $Y$ 的预测值。
+
+\begin{theorem}[预测误差的分解]
+假设我们得到了一个固定的估计函数 $\hat{f}$ 和输入 $X$，那么预测值 $\hat{Y}$ 与真实值 $Y$ 之间的均方误差 (Mean Squared Error) 可以分解为可约误差和不可约误差两部分：
+\begin{equation}
+E(Y - \hat{Y})^2 = \underbrace{[f(X) - \hat{f}(X)]^2}_{\text{可约误差}} + \underbrace{Var(\epsilon)}_{\text{不可约误差}}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+根据定义 $Y = f(X) + \epsilon$ 以及预测式 $\hat{Y} = \hat{f}(X)$，我们展开期望均方误差：
+\begin{align*}
+E[(Y - \hat{Y})^2] &= E[(f(X) + \epsilon - \hat{f}(X))^2] \\
+&= E[((f(X) - \hat{f}(X)) + \epsilon)^2] \\
+&= E[(f(X) - \hat{f}(X))^2] + 2E[(f(X) - \hat{f}(X))\epsilon] + E[\epsilon^2]
+\end{align*}
+由于在给定的 $X$ 处，$(f(X) - \hat{f}(X))$ 可以被视为常数，且根据假设 $E(\epsilon) = 0$：
+\begin{itemize}
+    \item 交叉项 $2(f(X) - \hat{f}(X))E[\epsilon] = 0$。
+    \item 最后一项 $E[\epsilon^2] = Var(\epsilon) + [E(\epsilon)]^2 = Var(\epsilon)$。
+\end{itemize}
+因此：
+\begin{equation}
+E[(Y - \hat{Y})^2] = [f(X) - \hat{f}(X)]^2 + Var(\epsilon)
+\end{equation}
+定理得证。
+\end{proof}
+
+\begin{remark}
+\textbf{可约误差 (Reducible Error)} 可以通过使用更先进的统计学习算法来最小化（即让 $\hat{f}$ 逼近 $f$）。但无论算法多么完美，\textbf{不可约误差 (Irreducible Error)} $Var(\epsilon)$ 都为预测准确度设定了一个无法逾越的下界，因为 $\epsilon$ 包含了除了可用特征 $X$ 之外的所有未知影响因素。
+\end{remark}
+
+\subsubsection{推断 (Inference)}
+如果我们想了解 $X$ 作为整体或其各个分量是如何影响 $Y$ 的，我们的目标就是推断。此时，$\hat{f}$ 不能被当成一个“黑盒”，我们必须确切知道它的形态。例如：
+\begin{itemize}
+    \item 哪些预测变量与响应变量真正相关？
+    \item 响应变量与每个预测变量之间的关系是正相关还是负相关？
+    \item 这种关系可以用线性方程充分描述，还是必须使用更复杂的非线性形式？
+\end{itemize}
+
+\subsection{如何估计 $f$？ (How Do We Estimate $f$?)}
+
+我们通过使用一组观测到的**训练数据 (Training Data)** 来指导我们估计 $f$。统计学习方法主要分为两大类：参数方法和非参数方法。
+
+\subsubsection{参数方法 (Parametric Methods)}
+参数方法包含两个步骤的模型拟合过程：
+\begin{enumerate}
+    \item \textbf{模型假设}：首先，我们对 $f$ 的函数形式做出强烈的假设。最简单且最常用的是假设 $f$ 是 $X$ 的线性组合：
+    \begin{equation}
+    f(X) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p
+    \end{equation}
+    \item \textbf{模型拟合/训练}：在假设了模型形式后，我们需要使用训练数据去估计少量的未知参数（对于线性模型，就是去寻找最优的 $\beta_0, \beta_1, \dots, \beta_p$），最常用的方法是普通最小二乘法 (OLS)。
+\end{enumerate}
+
+\textbf{关于图 2.4 (线性模型拟合) 的解析：}
+\begin{itemize}
+    \item \textbf{黄色平面}：这代表了使用参数方法（即线性回归）拟合出来的估计函数 $\hat{f}(X)$。
+    \item \textbf{对比图 2.3}：你可以发现，图 2.3 中真实的蓝色曲面是弯曲的，而图 2.4 的黄色平面是绝对平直的。这意味着线性参数模型存在一定的\textbf{偏差}——它无法完美捕捉数据中真实的曲度。
+    \item \textbf{优势}：尽管它不是完美的，但由于其形式简单（仅仅是一个平面方程），我们非常容易解释它（例如，我们可以直接说出“每增加一年教育，收入平均增加多少”）。这就是参数方法最大的优势。
+\end{itemize}
+
+\subsubsection{非参数方法 (Non-parametric Methods) [简述]}
+非参数方法不对 $f$ 的具体函数形式做任何明确的假设。相反，它们试图尽可能靠近数据点。虽然它们可以拟合更广泛的可能形状，但缺点是需要非常大量的观测数据，且容易发生“过拟合 (Overfitting)”。
+
+\subsection{预测准确性与模型可解释性之间的权衡 (The Trade-Off Between Prediction Accuracy and Model Interpretability)}
+
+既然非参数方法（如深度学习、样条方法）或者复杂的非线性方法极其灵活，为什么我们有时还会选择简单的线性回归呢？
+
+这就是统计学习中的核心矛盾：\textbf{灵活性 (Flexibility) 与 可解释性 (Interpretability) 的此消彼长}。
+\begin{itemize}
+    \item \textbf{当推断 (Inference) 是目标时}：像线性回归这样的限制性模型（低灵活度）非常受欢迎，因为它的参数有着清晰的统计学含义，很容易向非专业人士解释变量之间的关系。相反，极其灵活的模型（如深度学习神经网络）往往是“黑盒”，难以解释某个特定特征是如何影响输出的。
+    \item \textbf{当预测 (Prediction) 是唯一目标时}：我们往往不关心模型好不好解释，只在乎 $\hat{Y}$ 准不准。此时，我们通常会选择更灵活的模型，前提是我们有足够的数据来防止过拟合。
+\end{itemize}
+
+\end{document}

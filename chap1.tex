@@ -1,0 +1,120 @@
+% UTF8 表示使用通用国际字符作为内码，ctexart 表示这是一篇中文论文
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题
+\title{《统计学习导论》学习讲义 \\ \Large 第一章：导论 (Introduction)}
+% 设置撰写日期
+\author{}
+\date{\today}
+
+% 设置环境 theorem
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{corollary}[theorem]{推论}
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{remark}{注记}[section]
+\numberwithin{equation}{section}
+
+% 自定义命令，专门用于实数域和复数域
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+
+\begin{document}
+
+\maketitle
+
+\section{什么是统计学习 (What is Statistical Learning?)}
+
+统计学习是指一套用于理解数据 (understanding data) 的庞大工具集。随着科学和工业各个领域数据收集规模的惊人增长，统计学习已成为从数据中获取洞见的关键工具包。本节通过三个经典的数据集，直观地展示统计学习的三大核心应用场景：回归、分类与无监督学习。
+
+\subsection{连续数值的预测：回归 (Regression)}
+
+我们首先考虑预测连续数值的问题，即\textbf{回归问题}。以书中贯穿始终的\textbf{工资数据集 (Wage Data)} 为例，该数据包含了美国大西洋地区中部男性的收入调查信息。
+
+我们的目标是：结合员工的年龄 (Age)、年份 (Year) 以及教育程度 (Education Level) 等输入变量（自变量），来准确预测一个人的工资 (Wage) 这一输出变量（因变量）。
+通过探索性数据分析（如书中的图 1.1），我们可以观察到：
+\begin{itemize}
+    \item \textbf{非线性关系}：工资随年龄增长先升后降，在60岁左右达到顶峰，呈现明显的非线性趋势。
+    \item \textbf{线性关系}：从2003年到2009年，平均工资呈现出缓慢的线性增长。
+    \item \textbf{分类变量的影响}：教育水平越高（从高中以下到高级学位），人群的平均工资（箱线图的中位数）越高。
+\end{itemize}
+
+\begin{remark}
+在回归问题中，我们试图找到一个函数 $f(X)$，使得它能够尽可能准确地拟合输入 $X$ 与连续输出 $y$ 之间的映射关系。
+\end{remark}
+
+\subsection{离散类别的预测：分类 (Classification)}
+
+当我们要预测的输出变量不再是连续的数值，而是离散的类别时，我们面临的便是\textbf{分类问题}。以\textbf{股市数据集 (Smarket Data)} 为例，我们希望利用标准普尔500指数过去几天的百分比变化，来预测今天股市的方向是“上涨 (Up)”还是“下跌 (Down)”。
+
+如果我们直接观察历史收益率对于今日涨跌的分布（如书中的图 1.2），会发现两类的分布几乎完全重合，中位数均在 0 附近。这说明金融市场数据具有极高的噪声，单凭肉眼很难发现预测信号。
+
+然而，通过应用统计学习模型（如二次判别分析 QDA），我们可以捕捉到数据中微弱的模式。
+
+\textbf{关于预测模型效果的解析（参考书中的图 1.3）：}
+
+当我们在未见过的 2005 年数据上应用模型时，可以得到模型预测的“市场下跌的概率” $\hat{P}(Y=\text{Down} \mid X)$。从统计结果中我们可以观察到：
+\begin{itemize}
+    \item 在真实情况为“下跌 (Down)”的日子里，模型给出的平均下跌概率，略微高于真实情况为“上涨 (Up)”的日子。
+    \item 尽管信号非常微弱（大量数据点交叠），但依靠这个模型，我们依然能获得约 60\% 的预测准确率。这证明了在强噪声环境下，统计学习模型仍能有效提取有用信息。
+\end{itemize}
+
+\subsection{寻找隐藏的结构：无监督学习 (Unsupervised Learning)}
+
+前两个例子中，我们都有明确的预测目标（工资或涨跌），这被称为\textbf{监督学习}。而当我们只有输入数据，没有需要预测的输出数据时，这就是\textbf{无监督学习}。
+
+\textbf{基因表达数据集 (NCI60)} 是一个典型的例子。数据包含了 64 个癌细胞系的 6830 个基因表达测量值。我们的目标是发现这些细胞系是否基于其基因表达模式存在自然的分组（聚类）。
+
+\textbf{关于基因表达数据降维的解析（参考书中的图 1.4）：}
+
+由于数据高达 6830 维，我们无法直接可视化。通过应用\textbf{主成分分析 (PCA)} 进行降维处理：
+\begin{itemize}
+    \item 我们可以提取出第一和第二主成分（图中通常标记为 $Z_1$ 和 $Z_2$），它们是原始 6830 个变量的线性组合，保留了数据中最主要的变异信息。
+    \item \textbf{核心结论}：在降维和计算坐标的过程中，算法\textbf{完全不知道}这些细胞系的癌症类型（即没有使用任何标签）。然而，算法仅凭基因表达数据的相似性，就自然地将相同癌症类型的细胞系聚集在了二维空间的相邻位置。这展现了无监督学习在发现高维数据潜在结构方面的强大能力。
+\end{itemize}
+
+
+\section{数学符号说明 (Notation)}
+
+为了确保后续理论推导和公式表达的严谨性与一致性，本节对全书的数学符号进行统一定义。
+
+假设我们的数据集包含 $n$ 个观测值（样本点），每个观测值具有 $p$ 个特征（变量）。
+\begin{itemize}
+    \item $n$：样本量 (Sample size)。
+    \item $p$：特征数 (Number of features/predictors)。
+    \item $x_{ij}$：表示第 $i$ 个观测的第 $j$ 个特征的值，其中 $i = 1, 2, \dots, n$ 且 $j = 1, 2, \dots, p$。
+\end{itemize}
+
+我们通常将所有输入数据组织为一个 $n \times p$ 的矩阵 $\mathbf{X}$：
+\begin{equation}
+\mathbf{X} = \begin{pmatrix} 
+x_{11} & x_{12} & \dots & x_{1p} \\ 
+x_{21} & x_{22} & \dots & x_{2p} \\ 
+\vdots & \vdots & \ddots & \vdots \\ 
+x_{n1} & x_{n2} & \dots & x_{np} 
+\end{pmatrix}
+\end{equation}
+
+进一步定义向量表示：
+\begin{itemize}
+    \item \textbf{行向量表示观测}：我们将矩阵 $\mathbf{X}$ 的第 $i$ 行记为向量 $x_i$，它包含了第 $i$ 个样本的所有信息。注意，默认情况下 $x_i$ 被视为列向量，长度为 $p$。
+    \begin{equation}
+    x_i = \begin{pmatrix} x_{i1} \\ x_{i2} \\ \vdots \\ x_{ip} \end{pmatrix}
+    \end{equation}
+    \item \textbf{列向量表示特征}：我们将矩阵 $\mathbf{X}$ 的第 $j$ 列记为向量 $\mathbf{x}_j$（通常用粗体区分），长度为 $n$。
+    \item \textbf{输出向量}：我们用列向量 $\mathbf{y}$ 表示所有 $n$ 个观测的输出值。
+    \begin{equation}
+    \mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix}
+    \end{equation}
+\end{itemize}
+
+\begin{remark}
+在本书中，常规的小写字母（如 $x$, $y$）通常表示标量；粗体小写字母（如 $\mathbf{x}$, $\mathbf{y}$）表示向量；粗体大写字母（如 $\mathbf{X}$）表示矩阵。理解这一符号体系对于后续章节中推导最小二乘法等矩阵表达式至关重要。
+\end{remark}
+
+\end{document}

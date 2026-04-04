@@ -1,0 +1,158 @@
+% UTF8 表示使用通用国际字符作为内码，ctexart 表示这是一篇中文论文
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage{graphicx}                 % 插图
+\usepackage{booktabs}                 % 三线表
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题
+\title{第三章核心公式}
+% 设置撰写日期
+\date{}
+
+% 设置环境 
+\newtheorem{theorem}{定理}[section]
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{remark}{注记}[section]
+\numberwithin{equation}{section}
+
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\Var}{\text{Var}}
+\newcommand{\Cov}{\text{Cov}}
+\newcommand{\SE}{\text{SE}}
+\newcommand{\RSS}{\text{RSS}}
+\newcommand{\TSS}{\text{TSS}}
+\newcommand{\RSE}{\text{RSE}}
+
+\begin{document}
+
+\maketitle
+
+\noindent \textbf{符号约定：} 样本量为 $n$，预测变量个数为 $p$。$\mathbf{X} \in \RR^{n \times (p+1)}$ 为设计矩阵（包含全为 1 的截距列），$\mathbf{Y} \in \RR^n$ 为响应变量向量，$\boldsymbol{\beta} \in \RR^{p+1}$ 为参数向量。
+
+% ==========================================
+\section{3.1 简单线性回归 (Simple Linear Regression)}
+% ==========================================
+本节聚焦于只有一个预测变量 $X$ 时的模型：$Y = \beta_0 + \beta_1 X + \epsilon$。
+
+\begin{definition}[最小二乘系数估计]
+使得残差平方和 $\RSS = \sum_{i=1}^n (y_i - \hat{\beta}_0 - \hat{\beta}_1 x_i)^2$ 最小化的解析解：
+\begin{align}
+\hat{\beta}_1 &= \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{\sum_{i=1}^n (x_i - \bar{x})^2} \\
+\hat{\beta}_0 &= \bar{y} - \hat{\beta}_1 \bar{x}
+\end{align}
+\end{definition}
+
+\begin{definition}[系数估计的方差与标准误]
+假设误差项 $\epsilon_i$ 互不相关且方差均为 $\sigma^2$：
+\begin{align}
+\SE(\hat{\beta}_0)^2 &= \sigma^2 \left[ \frac{1}{n} + \frac{\bar{x}^2}{\sum_{i=1}^n (x_i - \bar{x})^2} \right] \\
+\SE(\hat{\beta}_1)^2 &= \frac{\sigma^2}{\sum_{i=1}^n (x_i - \bar{x})^2}
+\end{align}
+\emph{注：实际计算时，未知的 $\sigma^2$ 用残差标准误的平方 $\RSE^2$ 代替。}
+\end{definition}
+
+% ==========================================
+\section{3.2 多元线性回归 (Multiple Linear Regression)}
+% ==========================================
+将模型推广至 $p$ 个变量：$\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\epsilon}$。
+
+\begin{definition}[矩阵形式的普通最小二乘估计 / OLS Estimator]
+\begin{equation}
+\hat{\boldsymbol{\beta}} = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T\mathbf{Y}
+\end{equation}
+\end{definition}
+
+\begin{definition}[系数估计的方差与标准误 (多元情形)]
+在同方差假设 $\Var(\boldsymbol{\epsilon}) = \sigma^2 \mathbf{I}$ 下，参数向量估计 $\hat{\boldsymbol{\beta}}$ 的协方差矩阵为：
+\begin{equation}
+\Var(\hat{\boldsymbol{\beta}}) = \sigma^2 (\mathbf{X}^T\mathbf{X})^{-1}
+\end{equation}
+第 $j$ 个系数 $\hat{\beta}_j$ 的标准误 $\SE(\hat{\beta}_j)$ 即为上述协方差矩阵第 $j$ 个对角线元素的平方根：
+\begin{equation}
+\SE(\hat{\beta}_j) = \sqrt{\sigma^2 \cdot \left[ (\mathbf{X}^T\mathbf{X})^{-1} \right]_{jj}}
+\end{equation}
+为了直观展示多重共线性对标准误的影响，$\SE(\hat{\beta}_j)$ 还可以等价地展开为标量形式：
+\begin{equation}
+\SE(\hat{\beta}_j) = \frac{\sigma}{\sqrt{\sum_{i=1}^n (x_{ij} - \bar{x}_j)^2 \cdot (1 - R_{X_j | X_{-j}}^2)}}
+\end{equation}
+\emph{注：实际计算中用 $\RSE$ 代替未知的 $\sigma$。公式中 $(1 - R_{X_j | X_{-j}}^2)^{-1}$ 这一项正是方差膨胀因子 (VIF)，解释了为何变量间高度相关会导致系数估计极不稳定。}
+\end{definition}
+
+\begin{definition}[拟合优度与误差统计量]
+\begin{align}
+\TSS &= \sum_{i=1}^n (y_i - \bar{y})^2 \quad \text{(总平方和)} \\
+\RSS &= \sum_{i=1}^n (y_i - \hat{y}_i)^2 = (\mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}})^T (\mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}}) \quad \text{(残差平方和)} \\
+\RSE &= \sqrt{\frac{\RSS}{n - p - 1}} \quad \text{(残差标准误，简单线性回归中分母为 $n-2$)} \\
+R^2 &= 1 - \frac{\RSS}{\TSS} \quad \text{(决定系数)}
+\end{align}
+\end{definition}
+
+\begin{definition}[假设检验统计量]
+\textbf{$t$ 统计量} (检验单个变量 $\beta_j = 0$)：
+\begin{equation}
+t = \frac{\hat{\beta}_j - 0}{\SE(\hat{\beta}_j)}
+\end{equation}
+\textbf{$F$ 统计量} (检验全模型 $\beta_1 = \dots = \beta_p = 0$)：
+\begin{equation}
+F = \frac{(\TSS - \RSS) / p}{\RSS / (n - p - 1)}
+\end{equation}
+\end{definition}
+
+% ==========================================
+\section{3.3 回归模型中的其他考量 (Other Considerations)}
+% ==========================================
+本节主要涉及模型的非线性扩展与六大潜在问题的诊断统计量。
+
+\begin{definition}[杠杆统计量 / Leverage Statistic]
+衡量观测点在预测变量空间（$X$ 空间）的离群程度。矩阵形式为帽子矩阵 $\mathbf{H} = \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T$ 的对角线元素。
+\begin{equation}
+h_i = H_{ii} = \mathbf{x}_i^T (\mathbf{X}^T\mathbf{X})^{-1} \mathbf{x}_i
+\end{equation}
+简单线性回归下的特殊形式：
+\begin{equation}
+h_i = \frac{1}{n} + \frac{(x_i - \bar{x})^2}{\sum_{j=1}^n (x_j - \bar{x})^2}
+\end{equation}
+\end{definition}
+
+\begin{definition}[学生化残差 / Studentized Residual]
+用于检测响应变量空间（$Y$ 空间）的异常值。将残差除以其估计的标准误进行标准化：
+\begin{equation}
+e_i^* = \frac{e_i}{\RSE \sqrt{1 - h_i}}
+\end{equation}
+\end{definition}
+
+\begin{definition}[方差膨胀因子 / Variance Inflation Factor, VIF]
+用于诊断多重共线性。衡量由于其他变量的存在，导致 $\hat{\beta}_j$ 方差膨胀的倍数：
+\begin{equation}
+\text{VIF}(\hat{\beta}_j) = \frac{1}{1 - R_{X_j | X_{-j}}^2}
+\end{equation}
+其中 $R_{X_j | X_{-j}}^2$ 是将 $X_j$ 作为响应变量，对模型中其余所有预测变量进行回归所得到的 $R^2$。
+\end{definition}
+
+% ==========================================
+\section{3.4 \& 3.5 预测评估与非参数方法对比}
+% ==========================================
+第3.4节“营销计划”将前述模型应用于回答实际业务问题，其中最重要的量化工具是区间估计。第3.5节则引入了非参数的 K 近邻回归。
+
+\begin{definition}[置信区间与预测区间 (Confidence \& Prediction Intervals)]
+对于给定的预测变量向量 $\mathbf{x}_0$：
+\begin{itemize}
+    \item \textbf{置信区间} (估计平均响应 $E(Y|X=\mathbf{x}_0)$)：宽度仅取决于可约误差（参数估计的方差）。
+    \item \textbf{预测区间} (估计单个观测值 $Y = f(\mathbf{x}_0) + \epsilon$)：宽度同时取决于可约误差与不可约误差 $\Var(\epsilon) = \sigma^2$。因此，预测区间永远比置信区间宽。
+\end{itemize}
+\end{definition}
+
+\begin{definition}[K 近邻回归 / K-Nearest Neighbors Regression]
+非参数方法，不预设函数的线性形式。对于给定的预测点 $x_0$，找到训练集中距离 $x_0$ 最近的 $K$ 个点（集合记为 $\mathcal{N}_0$），计算这些点响应变量的平均值作为预测值：
+\begin{equation}
+\hat{f}(x_0) = \frac{1}{K} \sum_{x_i \in \mathcal{N}_0} y_i
+\end{equation}
+\emph{注：当 $K$ 较小时模型最灵活（方差大，偏差小）；当 $K$ 增大时模型变平滑。}
+\end{definition}
+
+\end{document}

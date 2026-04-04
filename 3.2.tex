@@ -1,0 +1,242 @@
+% UTF8 表示使用通用国际字符作为内码，ctexart 表示这是一篇中文论文
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage{graphicx}                 % 插图
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题
+\title{3.2节 多元线性回归}
+% 设置撰写日期
+\date{}
+
+% 设置环境 theorem (这是用户自定义环境名，相当于一个变量)
+\newtheorem{theorem}{定理}[section]
+% 设置引理环境，直接套用theorem，后果是和定理共享编号
+\newtheorem{lemma}[theorem]{引理}
+% 设置定义环境，和定理共享编号
+\newtheorem{definition}[theorem]{定义}
+% 设置注记环境，独立编号，和节绑定
+\newtheorem{remark}{注记}[section]
+% 让公式编号的计数器前面自动加上节，比如式 (2.1)
+\numberwithin{equation}{section}
+
+% 自定义命令，专门用于实数域和复数域
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+
+\begin{document}
+
+\maketitle
+
+\section{引言}
+
+在第三章中，我们已经学习了简单线性回归：用一个预测变量 \(X\) 来预测响应变量 \(Y\)。然而在实际问题中，响应变量往往受到多个因素的影响。例如，在《An Introduction to Statistical Learning》第3章的广告数据中，产品销售额不仅与电视广告投入有关，还可能同时受到广播广告和报纸广告的影响。因此，我们需要将模型扩展为包含多个预测变量的形式，这就是多元线性回归。
+
+本章节将从模型设定、参数估计、统计推断、模型评估等方面系统介绍多元线性回归的核心内容。
+
+\section{多元线性回归模型}
+
+\subsection{模型形式}
+
+假设我们有一个响应变量 \(Y\) 和 \(p\) 个预测变量 \(X_1, X_2, \ldots, X_p\)。多元线性回归模型假设它们之间的关系为
+\begin{equation}
+Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p + \epsilon,
+\label{eq:model}
+\end{equation}
+其中 \(\beta_0\) 是截距项，\(\beta_1,\ldots,\beta_p\) 是回归系数（斜率），\(\epsilon\) 是随机误差项，满足 \(\mathrm{E}(\epsilon)=0\) 且 \(\mathrm{Var}(\epsilon)=\sigma^2\)（同方差性），且各观测之间的误差相互独立。
+
+给定 \(n\) 组观测数据 \((x_{i1},x_{i2},\ldots,x_{ip},y_i),\ i=1,\ldots,n\)，我们可以将模型写为
+\begin{equation}
+y_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \cdots + \beta_p x_{ip} + \epsilon_i,\quad i=1,\ldots,n.
+\label{eq:obs}
+\end{equation}
+
+\subsection{矩阵表示}
+
+引入矩阵记号：
+\[
+\mathbf{y} = \begin{pmatrix} y_1 \\ y_2 \\ \vdots \\ y_n \end{pmatrix},\quad
+\mathbf{X} = \begin{pmatrix}
+1 & x_{11} & x_{12} & \cdots & x_{1p} \\
+1 & x_{21} & x_{22} & \cdots & x_{2p} \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & x_{n1} & x_{n2} & \cdots & x_{np}
+\end{pmatrix},\quad
+\boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_p \end{pmatrix},\quad
+\boldsymbol{\epsilon} = \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ \vdots \\ \epsilon_n \end{pmatrix}.
+\]
+则模型\eqref{eq:obs}可简洁地表示为
+\begin{equation}
+\mathbf{y} = \mathbf{X} \boldsymbol{\beta} + \boldsymbol{\epsilon}.
+\label{eq:matrix}
+\end{equation}
+
+\section{参数估计：最小二乘法}
+
+多元线性回归通常采用普通最小二乘法（Ordinary Least Squares, OLS）来估计系数 \(\boldsymbol{\beta}\)。其基本思想是选择 \(\hat{\boldsymbol{\beta}}\) 使得残差平方和（RSS）最小：
+\begin{equation}
+\mathrm{RSS}(\boldsymbol{\beta}) = \sum_{i=1}^n \left(y_i - \beta_0 - \sum_{j=1}^p \beta_j x_{ij}\right)^2 = (\mathbf{y} - \mathbf{X}\boldsymbol{\beta})^\mathsf{T}(\mathbf{y} - \mathbf{X}\boldsymbol{\beta}).
+\label{eq:rss}
+\end{equation}
+
+\subsection{最小二乘解}
+
+对 \(\boldsymbol{\beta}\) 求导并令导数为零，得到正规方程：
+\[
+\mathbf{X}^\mathsf{T}\mathbf{X} \boldsymbol{\beta} = \mathbf{X}^\mathsf{T} \mathbf{y}.
+\]
+当 \(\mathbf{X}^\mathsf{T}\mathbf{X}\) 可逆时，最小二乘估计量为
+\begin{equation}
+\hat{\boldsymbol{\beta}} = (\mathbf{X}^\mathsf{T}\mathbf{X})^{-1} \mathbf{X}^\mathsf{T} \mathbf{y}.
+\label{eq:ols}
+\end{equation}
+在经典假设下，\(\hat{\boldsymbol{\beta}}\) 是 \(\boldsymbol{\beta}\) 的最佳线性无偏估计（BLUE）。
+
+\begin{remark}\label{remark1}
+    由于 $y = X\beta+\epsilon$, 带入
+    $\hat{\boldsymbol{\beta}} = 
+    (\mathbf{X}^\mathsf{T}\mathbf{X})^{-1} \mathbf{X}^\mathsf{T} \mathbf{y}.$
+    可得$\hat{\beta}= \beta + (X^TX)^{-1}X^T\epsilon$
+\end{remark}
+
+\subsection{拟合值与残差}
+
+拟合值（预测值）为
+\[
+\hat{\mathbf{y}} = \mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{X}(\mathbf{X}^\mathsf{T}\mathbf{X})^{-1}\mathbf{X}^\mathsf{T}\mathbf{y} \triangleq \mathbf{H}\mathbf{y},
+\]
+其中 \(\mathbf{H}\) 是帽子矩阵（投影矩阵）。残差为
+\[
+\mathbf{e} = \mathbf{y} - \hat{\mathbf{y}} = (\mathbf{I} - \mathbf{H})\mathbf{y}.
+\]
+
+\section{回归系数的解释与统计推断}
+
+\subsection{系数的解释}
+
+在多元线性回归中，系数 \(\beta_j\) 的含义是：在其他变量保持不变的情况下，\(X_j\) 每增加一个单位，响应 \(Y\) 的平均变化量。这一解释依赖于“其他变量固定”的条件，这是多元回归与简单回归的重要区别。若预测变量之间存在相关性，简单回归的系数可能与多元回归的系数相差很大（例如广告数据中报纸广告的例子）。
+
+\subsection{标准误与置信区间}
+
+\(\hat{\boldsymbol{\beta}}\) 的协方差矩阵为
+\[
+\mathrm{Cov}(\hat{\boldsymbol{\beta}}) = \sigma^2 (\mathbf{X}^\mathsf{T}\mathbf{X})^{-1},
+\]
+其中 \(\sigma^2\) 是误差方差，通常用无偏估计
+\[
+\hat{\sigma}^2 = \frac{1}{n-p-1} \sum_{i=1}^n e_i^2 = \frac{\mathrm{RSS}}{n-p-1}
+\]
+代替。于是单个系数 \(\hat{\beta}_j\) 的标准误为
+\[
+\mathrm{SE}(\hat{\beta}_j) = \hat{\sigma} \sqrt{[(\mathbf{X}^\mathsf{T}\mathbf{X})^{-1}]_{jj}}.
+\]
+在正态性假设下，统计量
+\[
+t = \frac{\hat{\beta}_j - 0}{\mathrm{SE}(\hat{\beta}_j)} \sim t_{n-p-1}
+\]
+可用于检验 \(H_0: \beta_j = 0\)。对应的 \(p\) 值可衡量该变量在给定其他变量后是否仍与响应显著相关。
+\begin{remark}
+    正态性假设是误差$\epsilon\sim   N(\mathbf{0},\sigma^2I_n)$
+    再由\ref{remark1}可得
+    $\hat{\beta_j}\sim N(\beta,\sigma^2(X^TX)^{-1})$
+\end{remark}
+\begin{remark}\label{RSSchi}
+    类似于一维,有 $ \frac{(n-1)S^2_n}{\sigma^2}
+    \sim \chi^2(n-1)$, 在这里有 $RSS/\sigma^2 = 
+    \sum_{i=1}^{n}\epsilon^2_i/\sigma^2 
+    \sim \chi^2(n-p-1) $
+\end{remark}
+\subsection{置信区间}
+\(\beta_j\) 的 \(100(1-\alpha)\%\) 置信区间为
+\[
+\hat{\beta}_j \pm t_{\alpha/2, n-p-1} \cdot \mathrm{SE}(\hat{\beta}_j).
+\]
+
+\section{整体显著性检验：\(F\) 检验}
+
+我们通常关心所有系数是否同时为零，即检验
+\[
+H_0: \beta_1 = \beta_2 = \cdots = \beta_p = 0 \quad \text{vs.} \quad H_1: \text{至少有一个不为零}.
+\]
+为此构造 \(F\) 统计量
+\begin{equation}
+F = \frac{(\mathrm{TSS} - \mathrm{RSS})/p}{\mathrm{RSS}/(n-p-1)},
+\label{eq:fstat}
+\end{equation}
+其中 \(\mathrm{TSS} = \sum (y_i - \bar{y})^2\) 是总平方和。在 \(H_0\) 成立且误差正态的假设下，\(F \sim F_{p, n-p-1}\)。若 \(F\) 值很大，对应的 \(p\) 值很小，则拒绝原假设，说明至少有一个变量与响应存在线性关系。
+
+\subsection{为什么需要整体 \(F\) 检验？}
+当 \(p\) 较大时，即使所有系数为零，单凭运气也可能有几个系数对应的 \(p\) 值小于 0.05。而 \(F\) 检验通过联合检验避免了多重比较问题，控制了一类错误。
+
+\section{模型拟合质量的度量}
+
+\subsection{决定系数 \(R^2\)}
+\begin{equation}
+R^2 = 1 - \frac{\mathrm{RSS}}{\mathrm{TSS}} = \frac{\mathrm{TSS} - \mathrm{RSS}}{\mathrm{TSS}}.
+\label{eq:r2}
+\end{equation}
+\(R^2\) 介于 0 与 1 之间，表示由模型解释的响应变异比例。注意：当加入更多变量时，\(R^2\) 总是增加，因此不能单纯用 \(R^2\) 比较不同变量个数的模型。
+
+\subsection{残差标准误（RSE）}
+\begin{equation}
+\mathrm{RSE} = \sqrt{\frac{\mathrm{RSS}}{n-p-1}}.
+\label{eq:rse}
+\end{equation}
+它度量了观测值偏离回归平面的平均程度，单位与响应相同。RSE 可以视为模型对数据拟合好坏的一种绝对度量。
+
+\section{变量选择初步}
+
+在实际应用中，我们往往希望识别出真正与响应相关的变量。但穷举所有 \(2^p\) 个子集通常不可行。常用的自动选择方法包括：
+
+\begin{itemize}
+    \item \textbf{向前选择}：从空模型开始，每次添加一个使 RSS 下降最多的变量。
+    \item \textbf{向后选择}：从全模型开始，每次移除 \(p\) 值最大的变量。
+    \item \textbf{混合选择}：结合向前与向后，每添加一个变量后，检查是否可移除不显著的变量。
+\end{itemize}
+
+这些方法在后续章节（如第6章）会深入讨论。
+
+\section{预测与不确定性}
+
+对于给定新观测 \(\mathbf{x}_0 = (1, x_{01},\ldots,x_{0p})^\mathsf{T}\)，点预测为
+\[
+\hat{y}_0 = \mathbf{x}_0^\mathsf{T} \hat{\boldsymbol{\beta}}.
+\]
+预测的方差包括两部分：
+\[
+\mathrm{Var}(\hat{y}_0) = \sigma^2 \mathbf{x}_0^\mathsf{T}(\mathbf{X}^\mathsf{T}\mathbf{X})^{-1}\mathbf{x}_0,
+\]
+因此均值的置信区间为
+\[
+\hat{y}_0 \pm t_{\alpha/2, n-p-1} \cdot \hat{\sigma} \sqrt{\mathbf{x}_0^\mathsf{T}(\mathbf{X}^\mathsf{T}\mathbf{X})^{-1}\mathbf{x}_0}.
+\]
+若考虑个体预测（即包含误差项），则预测区间更宽：
+\[
+\hat{y}_0 \pm t_{\alpha/2, n-p-1} \cdot \hat{\sigma} \sqrt{1 + \mathbf{x}_0^\mathsf{T}(\mathbf{X}^\mathsf{T}\mathbf{X})^{-1}\mathbf{x}_0}.
+\]
+
+\section{小结}
+
+多元线性回归是统计学中最基础且应用广泛的模型之一。本章（3.2节）的主要逻辑脉络如下：
+
+\begin{enumerate}
+    \item 建立包含多个预测变量的线性模型，并给出矩阵表示；
+    \item 使用最小二乘法估计系数，并推导其解析解；
+    \item 对单个系数进行假设检验（\(t\) 检验），并解释其意义；
+    \item 用 \(F\) 检验判断整体线性关系是否显著；
+    \item 用 \(R^2\) 和 RSE 评价模型拟合效果；
+    \item 简要介绍变量选择方法；
+    \item 讨论预测的置信区间和预测区间。
+\end{enumerate}
+
+理解这些内容为后续学习更复杂的模型（如正则化、非线性模型）奠定了坚实的基础。
+
+\vspace{1cm}
+\begin{center}
+\textit{本文基于 Gareth James 等人所著《An Introduction to Statistical Learning with Applications in Python》第3章第2节整理。}
+\end{center}
+
+\end{document}
