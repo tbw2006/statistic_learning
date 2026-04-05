@@ -7,9 +7,9 @@
 \usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
 
 % 设置文章标题
-\title{《统计学习导论》学习讲义 \\ \Large 第二章：统计学习 (2.1 - 2.1.3 节)}
+\title{第二章学习讲义 }
 % 设置撰写日期
-\author{数学学院本科生}
+\author{tbw}
 \date{\today}
 
 % 设置环境 theorem
@@ -144,5 +144,102 @@ E[(Y - \hat{Y})^2] = [f(X) - \hat{f}(X)]^2 + Var(\epsilon)
     \item \textbf{当推断 (Inference) 是目标时}：像线性回归这样的限制性模型（低灵活度）非常受欢迎，因为它的参数有着清晰的统计学含义，很容易向非专业人士解释变量之间的关系。相反，极其灵活的模型（如深度学习神经网络）往往是“黑盒”，难以解释某个特定特征是如何影响输出的。
     \item \textbf{当预测 (Prediction) 是唯一目标时}：我们往往不关心模型好不好解释，只在乎 $\hat{Y}$ 准不准。此时，我们通常会选择更灵活的模型，前提是我们有足够的数据来防止过拟合。
 \end{itemize}
+
+
+
+
+\section{评估模型准确性 (Assessing Model Accuracy)}
+
+在统计学习中，“天下没有免费的午餐”：没有任何一种统计学习方法在所有可能的数据集上都能超越其他所有方法。对于特定的数据集，某个特定方法可能表现最佳。因此，我们必须有一套严格的数学标准来衡量模型的好坏。
+
+\subsection{测量拟合质量：均方误差 (MSE)}
+
+在回归问题（预测定量输出）中，评估模型预测值与真实观测值之间接近程度的最常用指标是\textbf{均方误差 (Mean Squared Error, MSE)}：
+\begin{equation}
+MSE = \frac{1}{n} \sum_{i=1}^n (y_i - \hat{f}(x_i))^2
+\end{equation}
+
+我们需要严格区分两种不同的 MSE：
+\begin{itemize}
+    \item \textbf{训练均方误差 (Training MSE)}：利用估计 $\hat{f}$ 时使用的\textbf{同一批数据}计算得出的 MSE。
+    \item \textbf{测试均方误差 (Test MSE)}：利用模型\textbf{从未见过的新数据}（测试数据）计算得出的 MSE。
+\end{itemize}
+\begin{remark}
+我们在实际应用中，真正在乎的仅仅是\textbf{测试 MSE} 最小。如果我们使用极其灵活的方法（即自由度很高）去强行拟合训练数据，虽然可以使得训练 MSE 降到接近于零，但此时模型记住了数据中的随机噪声，面对新数据时测试 MSE 会剧烈上升，这种现象被称为\textbf{过拟合 (Overfitting)}。
+\end{remark}
+
+\subsection{偏差-方差权衡 (The Bias-Variance Trade-Off)}
+
+测试 MSE 呈现出一种极其普遍的 U 型曲线规律，这背后的深刻数学原理被称为\textbf{偏差-方差权衡}。
+
+\begin{theorem}[预期测试均方误差的分解]
+对于一个给定的测试观测点 $x_0$，我们使用估计的函数 $\hat{f}$ 来预测对应的响应变量 $y_0$。其预期的测试均方误差可以严格分解为三个非负项的和：模型方差、模型偏差的平方，以及不可约误差的方差。
+\begin{equation}
+E[(y_0 - \hat{f}(x_0))^2] = Var(\hat{f}(x_0)) + [Bias(\hat{f}(x_0))]^2 + Var(\epsilon)
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+已知真实关系为 $y_0 = f(x_0) + \epsilon$，且随机误差项满足 $E(\epsilon)=0, Var(\epsilon)=\sigma^2$。误差 $\epsilon$ 独立于训练数据（即独立于 $\hat{f}(x_0)$）。
+展开预期误差的平方：
+\begin{align*}
+E[(y_0 - \hat{f}(x_0))^2] &= E[(f(x_0) + \epsilon - \hat{f}(x_0))^2] \\
+&= E[((f(x_0) - \hat{f}(x_0)) + \epsilon)^2] \\
+&= E[(f(x_0) - \hat{f}(x_0))^2] + 2E[(f(x_0) - \hat{f}(x_0))\epsilon] + E[\epsilon^2]
+\end{align*}
+因为 $\epsilon$ 与 $\hat{f}$ 独立，交叉项期望为零。最后一项 $E[\epsilon^2] = Var(\epsilon) = \sigma^2$。我们重点展开第一项，通过加减期望 $E[\hat{f}(x_0)]$ 配凑方差公式：
+\begin{align*}
+E[(f(x_0) - \hat{f}(x_0))^2] &= E[( (f(x_0) - E[\hat{f}(x_0)]) + (E[\hat{f}(x_0)] - \hat{f}(x_0)) )^2] \\
+&= (f(x_0) - E[\hat{f}(x_0)])^2 + E[(\hat{f}(x_0) - E[\hat{f}(x_0)])^2] + 0 \\
+&= [Bias(\hat{f}(x_0))]^2 + Var(\hat{f}(x_0))
+\end{align*}
+将两部分合并，定理得证。
+\end{proof}
+
+\subsubsection{图文解析：理解图 2.12 (U型曲线的数学本质)}
+
+书中的\textbf{图 2.12} 是整个机器学习领域最经典的图像之一，它直观地展示了上述定理中各项如何随模型灵活度变化：
+\begin{itemize}
+    \item \textbf{横轴}：代表模型的\textbf{灵活性 (Flexibility)}。越靠右代表模型越复杂（例如多项式阶数越高，或者非参数方法）。
+    \item \textbf{红色实线 (测试 MSE)}：呈现经典的 \textbf{U 型曲线}。在某一个中间的灵活度达到最小值，然后开始反弹。
+    \item \textbf{灰色虚线 (训练 MSE)}：随着灵活度增加，它\textbf{单调递减}。因为模型越复杂，越能贴合训练点。
+    \item \textbf{浅蓝色虚线 (偏差的平方, Bias$^2$)}：\textbf{单调递减}。灵活度低的模型（如直线）逼近复杂现实时有很大的固有偏差；灵活度高时偏差减小。
+    \item \textbf{橙色曲线 (方差, Variance)}：\textbf{单调递增}。极其复杂的模型对训练数据极其敏感（换一批训练数据，拟合出的曲线会大变样），因此方差大。
+    \item \textbf{水平虚线 (不可约误差, $Var(\epsilon)$)}：这是预测误差的理论下界，任何模型都无法穿透这条线。
+\end{itemize}
+\textbf{结论}：由于测试 MSE 是偏差平方和方差的总和，随着灵活度增加，起初偏差迅速下降（远快于方差上升），MSE 下降；但越过某一点后，偏差很难再降，而方差迅速飙升（过拟合），导致 MSE 最终呈现 U 型。
+
+\subsection{分类问题 (The Classification Setting)}
+
+如果响应变量 $Y$ 是离散的（定性的），我们就进入了分类问题。此时，评估标准从均方误差替换为\textbf{训练错误率 (Training Error Rate)}，即被错误分类的样本比例：
+\begin{equation}
+\frac{1}{n} \sum_{i=1}^n I(y_i \neq \hat{y}_i)
+\end{equation}
+其中 $I(\cdot)$ 是指示函数，如果预测错误则为 1，预测正确则为 0。我们同样致力于最小化\textbf{测试错误率}。
+
+\subsubsection{图文解析：理解图 2.13 (贝叶斯分类器与不可约误差)}
+
+理论上，使测试错误率最小化的理想分类器被称为\textbf{贝叶斯分类器 (Bayes Classifier)}。它的原理是将观测值分配给给定输入下后验概率最大的一类，即寻找使得 $Pr(Y=j | X=x_0)$ 最大的 $j$。
+
+\textbf{图 2.13} 展示了一个模拟的二维分类数据集：
+\begin{itemize}
+    \item \textbf{紫色虚线 (贝叶斯决策边界)}：这是空间中 $Pr(Y=\text{橙色} | X) = 0.5$ 的点的集合。在这个边界的一侧预测橙色，另一侧预测蓝色。
+    \item \textbf{为什么点没有被严格分开？} 这是一个非常关键的问题。你可能会注意到，即使画出了最优的边界，橙色区域里依然有一些蓝点，蓝色区域里也有一些橙点。这是因为数据的生成本身是基于\textbf{概率}的。在边界附近，属于两类的概率存在重叠。
+    \item \textbf{贝叶斯错误率}：这些不可避免“越界”的点构成的错误率，就是分类问题中的\textbf{不可约误差}（类似于回归中的 $Var(\epsilon)$）。它代表了由于现实世界数据固有的重叠性，任何分类器都无法避免的极限错误。
+\end{itemize}
+
+\subsubsection{图文解析：理解图 2.14 (K-最近邻算法 KNN)}
+
+现实中，我们永远不知道真实的总体概率分布，因此无法真正计算出贝叶斯分类器。我们只能使用算法去\textbf{估计}概率。最直观的算法是 \textbf{K-最近邻法 (KNN)}。
+
+给定一个测试观测点 $x_0$，KNN 会在训练数据中找到离它最近的 $K$ 个点，计算各类别在这 $K$ 个点中的比例，然后进行多数表决。
+
+\textbf{图 2.14} 展示了当选择 $\textbf{K=10}$ 时 KNN 的表现：
+\begin{itemize}
+    \item \textbf{黑色实线 (KNN 决策边界)}：这是使用 $K=10$ 计算出的分类边界。
+    \item \textbf{紫色虚线 (真实贝叶斯边界)}：作为参考的理论最优边界。
+    \item \textbf{核心结论}：当 $K=10$ 时，黑线非常平滑，并且相当贴近真实的紫色虚线边界。这说明选择一个适中的 $K$ 值，可以在方差和偏差之间取得良好的权衡。如果 $K=1$（未在此图中显示），决策边界会变得极其曲折以迎合每一个单独的点，从而导致严重的过拟合（高方差）。
+\end{itemize}
+
 
 \end{document}

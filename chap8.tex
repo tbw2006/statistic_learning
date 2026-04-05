@@ -1,0 +1,107 @@
+% UTF8 表示使用通用国际字符作为内码，ctexart 表示这是一篇中文论文
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题
+\title{第八章学习讲义}
+% 设置撰写日期
+\author{tbw}
+\date{\today}
+
+% 设置环境 theorem
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{corollary}[theorem]{推论}
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{remark}{注记}[section]
+\numberwithin{equation}{section}
+
+% 自定义命令，专门用于实数域和复数域
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+
+\begin{document}
+
+\maketitle
+
+\section{决策树的直观理解与几何特征}
+
+决策树的核心逻辑是将复杂的全局预测问题，转化为一系列简单的、局部的规则判断。它放弃了对全局平滑函数（如线性超平面）的追求，转而使用分块的常数函数来逼近真实情况。
+
+\subsection{图文解析：棒球运动员薪水预测树 (图 8.1)}
+
+你上传的第一张图（图 8.1）展示了一棵典型的\textbf{回归树 (Regression Tree)}，用于预测棒球运动员的对数薪水（Salary）。
+\begin{itemize}
+    \item \textbf{内部节点 (Internal Nodes)}：图中的 \texttt{Years < 4.5} 和 \texttt{Hits < 117.5}。这代表了特征空间的分裂规则。算法首先发现“打球年限 (Years)”是区分薪水最重要的变量，因此将其作为根节点。
+    \item \textbf{分支 (Branches)}：连接节点的线，代表对判断条件的回答（左侧通常为 True，右侧为 False）。
+    \item \textbf{终端节点 / 叶子 (Terminal Nodes / Leaves)}：图最下方的三个数值（5.11, 6.00, 6.74）。例如，如果一个球员打了不到 4.5 年，他将被直接分到最左侧的叶子，预测薪水为 5.11。这个数值是训练集中所有满足该条件的球员薪水的\textbf{样本均值}。
+\end{itemize}
+
+\subsection{图文解析：递归二叉分裂的几何视角 (图 8.2)}
+
+第二张图（图 8.2）是整本书中解释决策树几何本质最重要的一张图，它由四个子图构成，完美揭示了算法的局限性与工作原理。
+
+\begin{itemize}
+    \item \textbf{左上角 (无法生成的划分)}：展示了一个被划分成五个区域的二维特征空间 $(X_1, X_2)$。请注意，$R_4$ 和 $R_5$ 的边界没有贯穿整个子空间。\textbf{这种划分是标准的决策树算法（递归二叉分裂）无法生成的！} 因为二叉分裂要求每一次切分都必须将一个父区域完整地一分为二（形成一条贯穿当前矩形的直线）。
+    \item \textbf{右上角与左下角 (合法的树与划分)}：左下角是一棵合法的树结构。对应到右上角的几何空间，算法首先在 $X_1 = t_1$ 处切了一刀，将空间分为左右两半。然后，\textbf{仅仅在左半边}，又在 $X_2 = t_2$ 处切了一刀（形成 $R_1, R_2$）；在右半边，先后进行了两次切分。这种层层嵌套的矩形切分，正是“递归二叉分裂”的几何体现。
+    \item \textbf{右下角 (预测曲面)}：这是一个三维视角。在每一个划分好的矩形区域 $R_m$ 内，模型给出的预测值是一个常数（平坦的台阶）。这说明决策树拟合出的是一个\textbf{分段常数曲面 (Piecewise Constant Surface)}。
+\end{itemize}
+
+\section{优化树的结构：剪枝算法背后的数学}
+
+如前所述，如果不加限制，决策树会一直生长，将图 8.2 中的空间切分得粉碎，导致严重的过拟合。
+
+\subsection{代价复杂性剪枝 (Cost Complexity Pruning)}
+
+为了控制树的复杂度，我们引入公式 8.3 作为优化的目标函数：
+\begin{equation}
+C_\alpha(T) = \sum_{m=1}^{|T|} \sum_{i: x_i \in R_m} (y_i - \hat{y}_{R_m})^2 + \alpha |T|
+\label{eq:pruning}
+\end{equation}
+其中 $|T|$ 是终端节点的数量，$\alpha \ge 0$ 是惩罚参数。
+
+\begin{remark}
+我们在讨论中提到过，式 \eqref{eq:pruning} 无法使用常规的最小二乘法求导来全局最小化，因为树的结构 $T$ 是一个离散组合变量。算法层面使用的是\textbf{最弱连接剪枝 (Weakest Link Pruning)}：自下而上地计算每个内部节点的误差增加率，每次剪掉导致误差增加最少的那根枝条，从而生成一个嵌套的树序列，最后通过交叉验证从中挑选最优的一棵。
+\end{remark}
+
+\section{集成学习：从单棵树到随机森林}
+
+单棵树（如图 8.1）最大的数学缺陷是\textbf{高方差}。为了解决这个问题，我们利用自助法 (Bootstrap) 结合聚合 (Aggregation) 的思想，演化出了强大的随机森林。
+
+\subsection{图文解析：随机森林的多数表决机制 (图 8.12)}
+
+你上传的第三张图（图 8.12）非常清晰地展示了\textbf{集成学习的并行架构}（如 Bagging 和随机森林在分类任务中的应用）。
+\begin{itemize}
+    \item \textbf{输入层}：一个待预测的测试观测值 $x$。
+    \item \textbf{集成模型群 (The Ensemble)}：图中间并排展示了 $B$ 棵不同的决策树（Tree $T_1$ 到 Tree $T_B$）。这 $B$ 棵树是分别在不同的 Bootstrap 训练样本上独立生长出来的。在随机森林中，这 $B$ 棵树在生长时，每次分裂还被限制只能随机考虑少数几个（如 $\sqrt{p}$ 个）特征。
+    \item \textbf{输出预测}：每棵树根据自己的结构向下推导，输出一个各自的分类预测（例如 $\hat{C}_1, \dots, \hat{C}_B$）。
+    \item \textbf{多数表决 (Majority Vote)}：最后一步，森林统计所有 $B$ 棵树给出的类别，得票最多的类别将作为整个随机森林模型的最终预测结果。
+\end{itemize}
+
+\subsection{随机森林优于 Bagging 的数学证明}
+
+为什么随机森林要在分裂时强制丢弃一部分特征（只选取 $m \approx \sqrt{p}$ 个）？这是为了\textbf{去相关性 (Decorrelation)}。
+
+\begin{theorem}
+假设我们有 $B$ 棵独立同分布的决策树，每棵树预测值的方差为 $\sigma^2$，但由于它们都在拟合相似的数据集，彼此之间存在正相关性，设成对相关系数为 $\rho$。则这 $B$ 棵树平均预测值的方差为：
+\begin{equation}
+Var\left(\frac{1}{B}\sum_{b=1}^B \hat{f}^{*b}(x)\right) = \rho \sigma^2 + \frac{1-\rho}{B} \sigma^2
+\label{eq:rf_variance}
+\end{equation}
+\end{theorem}
+\begin{proof}
+根据方差的性质，对和的方差展开：
+\begin{align*}
+Var\left(\frac{1}{B}\sum_{i=1}^B Z_i\right) &= \frac{1}{B^2} \left[ \sum_{i=1}^B Var(Z_i) + \sum_{i \neq j} Cov(Z_i, Z_j) \right] \\
+&= \frac{1}{B^2} \left[ B\sigma^2 + B(B-1)\rho\sigma^2 \right] \\
+&= \frac{\sigma^2}{B} + \frac{B-1}{B}\rho\sigma^2 = \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2
+\end{align*}
+\end{proof}
+
+\textbf{结论}：从式 \eqref{eq:rf_variance} 可以看出，如果树与树之间高度相关（Bagging 容易因为强势变量导致 $\rho$ 很大），那么即使我们生成无数棵树（$B \to \infty$），方差依然会被第一项 $\rho \sigma^2$ 牢牢卡住。随机森林通过每次分裂时随机选取特征子集，迫使每棵树长得不一样，极大地降低了 $\rho$，从而让整体模型的方差大幅降低，测试表现显著提升。
+
+\end{document}
