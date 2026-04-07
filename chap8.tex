@@ -4,23 +4,23 @@
 \usepackage[a4paper,margin=2.6cm]{geometry}
 
 \usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage{graphicx}                 % 插图
 \usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
 
 % 设置文章标题
-\title{第八章学习讲义}
+\title{第八章讲义 }
 % 设置撰写日期
-\author{tbw}
+\author{}
 \date{\today}
 
 % 设置环境 theorem
 \newtheorem{theorem}{定理}[section]
 \newtheorem{lemma}[theorem]{引理}
-\newtheorem{corollary}[theorem]{推论}
 \newtheorem{definition}[theorem]{定义}
 \newtheorem{remark}{注记}[section]
 \numberwithin{equation}{section}
 
-% 自定义命令，专门用于实数域和复数域
+% 自定义命令
 \newcommand{\RR}{\mathbb{R}}
 \newcommand{\CC}{\mathbb{C}}
 
@@ -28,80 +28,287 @@
 
 \maketitle
 
-\section{决策树的直观理解与几何特征}
+\section{基于树的方法简介}
+基于树的方法 (Tree-Based Methods) 是一种简单且极具解释性 (Simple, easy to interpret) 的非参数统计学习方法。它可以同时应用于回归 (Regression) 和分类 (Classification) 任务。其核心思想是通过一系列的决策规则，将复杂的特征空间划分成多个简单的矩形区域。
 
-决策树的核心逻辑是将复杂的全局预测问题，转化为一系列简单的、局部的规则判断。它放弃了对全局平滑函数（如线性超平面）的追求，转而使用分块的常数函数来逼近真实情况。
-
-\subsection{图文解析：棒球运动员薪水预测树 (图 8.1)}
-
-你上传的第一张图（图 8.1）展示了一棵典型的\textbf{回归树 (Regression Tree)}，用于预测棒球运动员的对数薪水（Salary）。
+\subsection{回归树的结构与几何直观}
+以 ISLR 书中的 Fig 8.1 棒球运动员薪水预测为例。为了削弱极值影响，通常对目标变量取对数，使其分布更接近钟形 (Salary (log) $\rightarrow$ bell shape)。
+树的结构由以下基本元素构成：
 \begin{itemize}
-    \item \textbf{内部节点 (Internal Nodes)}：图中的 \texttt{Years < 4.5} 和 \texttt{Hits < 117.5}。这代表了特征空间的分裂规则。算法首先发现“打球年限 (Years)”是区分薪水最重要的变量，因此将其作为根节点。
-    \item \textbf{分支 (Branches)}：连接节点的线，代表对判断条件的回答（左侧通常为 True，右侧为 False）。
-    \item \textbf{终端节点 / 叶子 (Terminal Nodes / Leaves)}：图最下方的三个数值（5.11, 6.00, 6.74）。例如，如果一个球员打了不到 4.5 年，他将被直接分到最左侧的叶子，预测薪水为 5.11。这个数值是训练集中所有满足该条件的球员薪水的\textbf{样本均值}。
+    \item \textbf{内部节点 (Internal Node)}：代表特征空间的分裂规则。例如 $Years < 4.5$ 或 $Hits < 117.5$。
+    \item \textbf{分支 (Branch)}：连接节点的线段，代表条件判断的流向。
+    \item \textbf{终端节点/叶节点}：最终划分出的特征空间区域。例如图中的三个区域：
+    $R_1 = \{X \mid Years < 4.5\}$, $R_2 = \{X \mid Years \ge 4.5, Hits < 117.5\}$, $R_3 = \{X \mid Years \ge 4.5, Hits \ge 117.5\}$。
 \end{itemize}
 
-\subsection{图文解析：递归二叉分裂的几何视角 (图 8.2)}
+\section{构建回归树的两大步骤 (Fig 8.2)}
+从数学角度来看，构建一棵回归树等价于执行以下两个步骤：
+\begin{enumerate}
+    \item 将整个预测变量空间（即 $X_1, X_2, \dots, X_p$ 的所有可能取值）划分为 $J$ 个互不重叠的区域 (non-overlapping regions) $R_1, R_2, \dots, R_J$。
+    \item 对于任何落入区域 $R_j$ 的观测值 (observation falls in $R_j$)，我们将该区域内所有训练样本的响应变量的\textbf{均值 (mean value)} 作为该观测值的预测值 $\hat{y}_{R_j}$。
+\end{enumerate}
 
-第二张图（图 8.2）是整本书中解释决策树几何本质最重要的一张图，它由四个子图构成，完美揭示了算法的局限性与工作原理。
+为了构建这些区域 $R_1, \dots, R_J$，我们的优化目标是\textbf{最小化残差平方和 (Minimize RSS)}：
+\begin{equation}
+RSS = \sum_{j=1}^J \sum_{i \in R_j} (y_i - \hat{y}_{R_j})^2
+\label{eq:rss_total}
+\end{equation}
 
-\begin{itemize}
-    \item \textbf{左上角 (无法生成的划分)}：展示了一个被划分成五个区域的二维特征空间 $(X_1, X_2)$。请注意，$R_4$ 和 $R_5$ 的边界没有贯穿整个子空间。\textbf{这种划分是标准的决策树算法（递归二叉分裂）无法生成的！} 因为二叉分裂要求每一次切分都必须将一个父区域完整地一分为二（形成一条贯穿当前矩形的直线）。
-    \item \textbf{右上角与左下角 (合法的树与划分)}：左下角是一棵合法的树结构。对应到右上角的几何空间，算法首先在 $X_1 = t_1$ 处切了一刀，将空间分为左右两半。然后，\textbf{仅仅在左半边}，又在 $X_2 = t_2$ 处切了一刀（形成 $R_1, R_2$）；在右半边，先后进行了两次切分。这种层层嵌套的矩形切分，正是“递归二叉分裂”的几何体现。
-    \item \textbf{右下角 (预测曲面)}：这是一个三维视角。在每一个划分好的矩形区域 $R_m$ 内，模型给出的预测值是一个常数（平坦的台阶）。这说明决策树拟合出的是一个\textbf{分段常数曲面 (Piecewise Constant Surface)}。
-\end{itemize}
+\section{递归二叉分裂 (Recursive Binary Splitting)}
+由于穷举所有可能的空间划分在计算上是不可行的，算法采用了一种**自顶向下、贪心 (Top-down, Greedy)** 的方法，即递归二叉分裂。
 
-\section{优化树的结构：剪枝算法背后的数学}
+\subsection{算法流程}
+在执行分裂时，我们选择一个预测变量 $X_j$ 和一个切分点 $s$ (select predictor $X_j$ and cut point $s$)，将当前特征空间划分为两个半平面：
+\begin{align*}
+R_1(j,s) &= \{X \mid X_j < s\} \\
+R_2(j,s) &= \{X \mid X_j \ge s\}
+\end{align*}
+我们寻找最优的 $j$ 和 $s$，以最小化划分后的总 RSS：
+\begin{equation}
+\min_{j,s} \left[ \sum_{i: x_i \in R_1(j,s)} (y_i - \hat{y}_{R_1})^2 + \sum_{i: x_i \in R_2(j,s)} (y_i - \hat{y}_{R_2})^2 \right]
+\label{eq:split_rss}
+\end{equation}
+完成一次分裂后，我们得到两个区域。接下来，我们继续对这两个区域中的\textbf{其中一个}重复上述切割过程 (Repeat the process to split further)，产生三个区域，然后再对三个区域中的一个进行切割，依此类推。
 
-如前所述，如果不加限制，决策树会一直生长，将图 8.2 中的空间切分得粉碎，导致严重的过拟合。
+\subsection{终止条件}
+这个过程会一直进行，直到满足某个预设的停止准则。例如，直到没有任何一个叶节点包含超过 5 个观测样本 (No region contains more than five observations)。此时，我们得到了一棵过度生长的大树 $T_0$。
+
+\section{树的剪枝 (Tree Pruning)}
+上述贪心算法生成的树通常极其复杂，导致模型在训练集上表现优异，但在未知数据上表现糟糕（即过拟合，may overfitting）。统计学理论指出，较少的分裂意味着较低的模型方差，代价仅仅是略微增加的偏差 (Fewer splits $\Rightarrow$ lower variance, little bias)。
+
+\subsection{短视策略的失败}
+一种直观的想法是：只有当某次分裂使得 RSS 的下降量超过某个阈值时，才允许进行该次分裂。然而，这种策略被证明是\textbf{过于短视的}。因为在当前步骤看似无价值的分裂，可能正是为了在后续步骤中实现极好的分类而做的铺垫。
 
 \subsection{代价复杂性剪枝 (Cost Complexity Pruning)}
+更好的策略 (Better Strategy) 是：先不受限制地长出一棵大树 $T_0$，然后再对其进行“修剪” (Prune it back)。我们希望在所有的子树中，选择一棵能导致最低测试错误率 (Lowest test error rate) 的子树，通常使用\textbf{交叉验证 (Cross-validation)} 来评估。
 
-为了控制树的复杂度，我们引入公式 8.3 作为优化的目标函数：
+由于评估每一棵可能的子树计算成本过高 (complex and cost)，我们引入最弱连接剪枝法 (Use weakest link pruning / Cost complexity pruning)。该方法通过引入一个非负调参 $\alpha$，寻找子树 $T \subset T_0$，使得下式最小：
 \begin{equation}
-C_\alpha(T) = \sum_{m=1}^{|T|} \sum_{i: x_i \in R_m} (y_i - \hat{y}_{R_m})^2 + \alpha |T|
+\sum_{m=1}^{|T|} \sum_{i: x_i \in R_m} (y_i - \hat{y}_{R_m})^2 + \alpha |T|
 \label{eq:pruning}
 \end{equation}
-其中 $|T|$ 是终端节点的数量，$\alpha \ge 0$ 是惩罚参数。
+其中 $|T|$ 为该树的终端节点数（叶节点数）。
 
 \begin{remark}
-我们在讨论中提到过，式 \eqref{eq:pruning} 无法使用常规的最小二乘法求导来全局最小化，因为树的结构 $T$ 是一个离散组合变量。算法层面使用的是\textbf{最弱连接剪枝 (Weakest Link Pruning)}：自下而上地计算每个内部节点的误差增加率，每次剪掉导致误差增加最少的那根枝条，从而生成一个嵌套的树序列，最后通过交叉验证从中挑选最优的一棵。
+公式 \eqref{eq:pruning} 与第 6 章中的 Lasso 回归 (Like Lasso) 具有极高的相似性。$\alpha$ 扮演了控制树复杂度的惩罚项。
+\begin{itemize}
+    \item 当 $\alpha = 0$ 时，惩罚项失效，公式等价于单纯的最小化 RSS，此时选出的树就是大树 $T_0$。
+    \item 随着 $\alpha$ 从 $0$ 开始逐渐增大 ($\alpha$ from $0 \uparrow$)，模型开始为拥有过多的节点支付代价。数学上可以证明，$T$ 的分支会以\textbf{嵌套且可预测地 (Nested and predictable)} 被逐步剪除。
+\end{itemize}
 \end{remark}
 
-\section{集成学习：从单棵树到随机森林}
 
-单棵树（如图 8.1）最大的数学缺陷是\textbf{高方差}。为了解决这个问题，我们利用自助法 (Bootstrap) 结合聚合 (Aggregation) 的思想，演化出了强大的随机森林。
 
-\subsection{图文解析：随机森林的多数表决机制 (图 8.12)}
 
-你上传的第三张图（图 8.12）非常清晰地展示了\textbf{集成学习的并行架构}（如 Bagging 和随机森林在分类任务中的应用）。
+\section{构建回归树的完整流程 (Algorithm 8.1)}
+在实际应用中，单棵未剪枝的大树 (Unpruned tree, 如原书 Fig 8.4) 往往存在严重的过拟合。通过观察训练集、交叉验证集和测试集的 MSE 曲线 (如原书 Fig 8.5)，我们通常能找到一个使误差最小的最佳节点数 (例如 min at 3 nodes)。
+
+标准回归树的构建过程 (Algorithm 8.1) 包含以下四个步骤：
+\begin{enumerate}
+    \item \textbf{递归二叉分裂 (Recursive binary splitting)}：在训练集上利用贪心算法自顶向下生成一棵大树。
+    \item \textbf{代价复杂性剪枝 (Cost complexity pruning)}：对大树应用剪枝算法，得到一系列以惩罚参数 $\alpha$ 为索引的最佳子树序列，记为 $f(x) = T$（$T$ 是对应 $\alpha$ 的最佳子树）。
+    \item \textbf{K折交叉验证 (K-fold cross-validation)}：使用交叉验证来挑选最优的 $\alpha$。其具体 Steps 为：将数据分为 K 份，每次留出一份作为验证集，在剩余数据上重复步骤 1 和 2，计算这 K 个验证集上的平均交叉验证 MSE，选出最优的 $\alpha$。
+    \item \textbf{返回最终模型}：回到步骤 2 生成的子树序列中，返回对应于最优 $\alpha$ 的那棵子树 $f(x)$。
+\end{enumerate}
+
+\section{分类树 (Classification Tree)}
+\subsection{预测准则与数学评估}
+对于分类树，在终端区域内，我们使用\textbf{最常出现的类别 (the most commonly occurring class)} 进行预测。同时，我们也对该区域内的类别比例 (class proportions) 感兴趣。
+
+假设 $\hat{P}_{mk}$ 代表第 $m$ 个区域中属于第 $k$ 类的训练观测值占比。我们有三种主要的指标来评估树的分裂质量：
+\begin{enumerate}
+    \item \textbf{分类错误率 (Classification error rate)}:
+    \begin{equation}
+        E = 1 - \max_k (\hat{P}_{mk})
+    \end{equation}
+    该指标对树的生长不够敏感 (not good sensitive)。
+    \item \textbf{基尼系数 (Gini index)}:
+    \begin{equation}
+        G = \sum_{k=1}^K \hat{P}_{mk}(1-\hat{P}_{mk})
+    \end{equation}
+    Gini 系数是衡量\textbf{节点纯度 (Node purity)} 的重要指标。若对于所有的 $k$，$\hat{P}_{mk}$ 都接近于 $0$ 或 $1$（即节点非常纯净），则 $G$ 的值会非常小。
+    \item \textbf{交叉熵 (Entropy / Deviance)}:
+    \begin{equation}
+        D = -\sum_{k=1}^K \hat{P}_{mk} \log \hat{P}_{mk}
+    \end{equation}
+    熵的性质类似于基尼系数。
+\end{enumerate}
+
+\begin{remark}[分裂原则]
+在构建 (生长) 树时，我们通常使用 Gini 或 entropy 作为分裂准则；而在剪枝时，错误率、Gini 和 entropy 都可以使用。正如原书 Fig 8.6 (心脏病数据集) 所展示的，有时一次分割后错误率相同，算法依然执行分割，这是为了\textbf{提升节点纯度}（因为 entropy 和 Gini 对 node purity 高度 sensitive）。
+\end{remark}
+
+\subsection{交叉验证标准误的计算}
+在 K-fold 交叉验证中，若 $E_k$ 为第 $k$ 折的误差，则交叉验证均值 $CV_{(K)}$、样本标准差 $SD$ 与均值标准误 $SE$ 的计算如下：
+\begin{align}
+    CV_{(K)} = \bar{E} &= \frac{1}{K} \sum_{k=1}^K E_k \\
+    SD &= \sqrt{\frac{1}{K-1} \sum_{k=1}^K (E_k - \bar{E})^2} \\
+    SE &= \frac{SD}{\sqrt{K}}
+\end{align}
+
+\section{线性模型与树模型的对比 (Linear vs. Tree)}
+两种模型在数学表达上有本质区别（参考原书 Fig 8.7 的直观对比）：
 \begin{itemize}
-    \item \textbf{输入层}：一个待预测的测试观测值 $x$。
-    \item \textbf{集成模型群 (The Ensemble)}：图中间并排展示了 $B$ 棵不同的决策树（Tree $T_1$ 到 Tree $T_B$）。这 $B$ 棵树是分别在不同的 Bootstrap 训练样本上独立生长出来的。在随机森林中，这 $B$ 棵树在生长时，每次分裂还被限制只能随机考虑少数几个（如 $\sqrt{p}$ 个）特征。
-    \item \textbf{输出预测}：每棵树根据自己的结构向下推导，输出一个各自的分类预测（例如 $\hat{C}_1, \dots, \hat{C}_B$）。
-    \item \textbf{多数表决 (Majority Vote)}：最后一步，森林统计所有 $B$ 棵树给出的类别，得票最多的类别将作为整个随机森林模型的最终预测结果。
+    \item \textbf{线性模型 (Linear)}：$f(x) = \beta_0 + \sum_{j=1}^p X_j \beta_j$。若特征与响应变量的关系能用线性近似，则线性模型表现更好（√）。
+    \item \textbf{回归树 (Regression tree)}：$f(x) = \sum_{m=1}^M C_m \cdot 1(X \in R_m)$。这是一种非线性 (非线性) 的阶跃函数模型，适用于具有高度非线性或复杂决策边界的数据。
 \end{itemize}
 
-\subsection{随机森林优于 Bagging 的数学证明}
+\subsection{决策树的优缺点 (Advantages and Disadvantages)}
+\textbf{优点：}
+1. 易于解释 (Easy to explain)。
+2. 更类似于人类决策的思考过程。
+3. 具有图形化展示，直观易理解。
+4. 易于处理定性变量 (Qualitative variables)，无需创建哑变量 (without the need to create dummy variables)。
 
-为什么随机森林要在分裂时强制丢弃一部分特征（只选取 $m \approx \sqrt{p}$ 个）？这是为了\textbf{去相关性 (Decorrelation)}。
+\textbf{缺点：}
+5. 预测不够准确 (Not highly accurate)。
+6. 不够稳健 (Not robust)，数据微小的变化可能导致树结构的巨大改变（即高方差）。
 
-\begin{theorem}
-假设我们有 $B$ 棵独立同分布的决策树，每棵树预测值的方差为 $\sigma^2$，但由于它们都在拟合相似的数据集，彼此之间存在正相关性，设成对相关系数为 $\rho$。则这 $B$ 棵树平均预测值的方差为：
+\section{Bagging 与集成学习 (Ensemble Learning)}
+为了克服单棵决策树的高方差 (High variance in 8.1)，我们引入集成学习 (Ensemble) 的思想，使用 Bagging 技术来降低方差 (Use bag to lower var)。
+
+\subsection{数学原理与 Bootstrap}
+根据概率论基本知识，给定 $n$ 个独立同分布的随机变量 $Z_1, \dots, Z_n$，其均值的方差为：
 \begin{equation}
-Var\left(\frac{1}{B}\sum_{b=1}^B \hat{f}^{*b}(x)\right) = \rho \sigma^2 + \frac{1-\rho}{B} \sigma^2
-\label{eq:rf_variance}
+    Var(\bar{Z}) = \frac{\sigma^2}{n}
 \end{equation}
+即平均处理能够降低方差。基于第 5 章的 Bootstrap（自助法重复采样），我们从原数据集中有放回地抽取 $B$ 个训练集，并计算出 $B$ 个预测模型 $\hat{f}^1(x), \hat{f}^2(x), \dots, \hat{f}^B(x)$。
+最终的 Bagging 预测为：
+\begin{equation}
+    \hat{f}_{bag}(x) = \frac{1}{B} \sum_{b=1}^B \hat{f}^{*b}(x)
+\end{equation}
+通过平均 $B$ 棵回归树，模型方差显著降低。
+
+\subsection{袋外误差估计 (OOB Observations)}
+Bagging 有一个极其便利的特性。在 Bootstrap 抽样中，每棵树大约只能利用 $2/3$ 的观测值 (observations)。
+\begin{lemma}
+某个特定观测值未被抽中的概率为 $(1 - \frac{1}{n})^n$。当 $n \to \infty$ 时，该概率趋近于 $e^{-1} \approx 1/3$。因此，约有 $1/3$ 的数据成为袋外数据 (OOB observations)。
+\end{lemma}
+对于给定的观测值，我们只在那些**未抽中它**的树上（共约 $B/3$ 棵树）预测其响应。如果是回归任务则取平均，分类任务则取多数决。这种方法\textbf{类似于交叉验证}，无需额外划分测试集即可无偏地估计模型误差。
+
+\subsection{变量重要性 (Variable Importance)}
+Bagging 集合了数百棵树，虽然提高了准确率，但\textbf{会降低模型的解释度}。
+为了恢复解释性，我们不再关注单棵树的结构，而是汇总特征的全局贡献：使用每个预测变量 (predictor) 造成 RSS（回归）或 Gini 系数（分类）下降的总和，来总结该变量的重要性 (Use RSS, Gini, to summary the importance of each predictor)。
+
+
+\section{随机森林 (Random Forests)}
+回顾 Fig 8.9，我们使用 Gini index 的平均下降值 (Mean decrease in Gini index) 来衡量变量重要性 (Variable Importance)。为了进一步克服 Bagging 的缺陷，我们引入随机森林。
+
+\subsection{特征子集抽取与去相关性}
+在随机森林中，每次分裂节点时 (each time split)，算法不会考虑全部的 $p$ 个预测变量，而是从全集 $p$ 中随机抽取一个大小为 $m$ 的样本子集作为分裂候选 (a random sample of $m$ predictors is chosen as split candidates)。通常推荐 $m \approx \sqrt{p}$。
+
+这种做法的核心目的是\textbf{减弱极强 predictor 的影响}。在 Bagging 中，如果存在一个极强的预测变量，几乎所有的树都会在顶层选择它进行分裂，导致生成的树高度相似，降低方差的效果大打折扣 (Bagging 因此降低方差效果不如 Random Forests)。
+
+\begin{theorem}[强特征被隔离的概率]
+在随机森林的任意一次分裂中，平均有 $\frac{p-m}{p}$ 的概率抽不中那个最强的 predictor。
 \end{theorem}
 \begin{proof}
-根据方差的性质，对和的方差展开：
-\begin{align*}
-Var\left(\frac{1}{B}\sum_{i=1}^B Z_i\right) &= \frac{1}{B^2} \left[ \sum_{i=1}^B Var(Z_i) + \sum_{i \neq j} Cov(Z_i, Z_j) \right] \\
-&= \frac{1}{B^2} \left[ B\sigma^2 + B(B-1)\rho\sigma^2 \right] \\
-&= \frac{\sigma^2}{B} + \frac{B-1}{B}\rho\sigma^2 = \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2
-\end{align*}
+从总共 $p$ 个特征中随机抽取 $m$ 个，总共有 $\binom{p}{m}$ 种抽法。
+若要使得这 $m$ 个特征中\textbf{不包含}那个最强的特征，意味着这 $m$ 个特征必须全部从剩余的 $p-1$ 个普通特征中抽取，共有 $\binom{p-1}{m}$ 种抽法。
+因此，未能抽中该强特征的概率为：
+$$ P = \frac{\binom{p-1}{m}}{\binom{p}{m}} = \frac{\frac{(p-1)!}{m!(p-1-m)!}}{\frac{p!}{m!(p-m)!}} = \frac{p-m}{p} $$
 \end{proof}
+通过这种强制的特征隔离，随机森林成功减弱了树之间的相关性，使得模型变异性更小，更加可靠 (less variable, more reliable)。
 
-\textbf{结论}：从式 \eqref{eq:rf_variance} 可以看出，如果树与树之间高度相关（Bagging 容易因为强势变量导致 $\rho$ 很大），那么即使我们生成无数棵树（$B \to \infty$），方差依然会被第一项 $\rho \sigma^2$ 牢牢卡住。随机森林通过每次分裂时随机选取特征子集，迫使每棵树长得不一样，极大地降低了 $\rho$，从而让整体模型的方差大幅降低，测试表现显著提升。
+\begin{remark}[Fig 8.10 与零模型错误率]
+原书 Fig 8.10 展示了不同 $m$ 取值下的测试误差。笔记中提及的“零假设的含义”，准确来说是指\textbf{零模型错误率 (Null Rate)}。它代表了在不使用任何特征，仅盲猜多数类时的基线错误率，用于衬托树模型的实际预测效力。
+\end{remark}
+
+\section{提升法 (Boosting)}
+与随机森林并行独立建树不同，Boosting 中的树是\textbf{顺序生长的 (trees are grown sequentially)}，即每一棵新树都在利用之前树的信息来生长。
+此外，Boosting \textbf{不使用自助法抽样 (no bootstrap sampling)}，而是通过修改原始数据（具体来说是拟合残差）来训练模型。
+
+\subsection{算法 8.2：回归树的 Boosting (Algorithm 8.2)}
+\begin{enumerate}
+    \item 初始化全局模型 $\hat{f}(x) = 0$，初始残差 $r_i = y_i$ 对训练集中的所有 $i$ 成立。
+    \item 对 $b = 1, 2, \dots, B$，重复以下步骤：
+    \begin{enumerate}
+        \item[(a)] 在训练数据 $(X, r)$ 上拟合一棵拥有 $d$ 个分裂点（即 $d+1$ 个叶子节点/leaves）的树 $\hat{f}^b(x)$。注意目标变量是残差 $r$。
+        \item[(b)] 更新全局预测模型：$\hat{f}(x) \leftarrow \hat{f}(x) + \lambda \hat{f}^b(x)$
+        \item[(c)] 更新残差账本：$r_i \leftarrow r_i - \lambda \hat{f}^b(x_i)$
+    \end{enumerate}
+    \item 输出最终的 boosted 模型：
+    \begin{equation}
+        \hat{f}(x) = \sum_{b=1}^B \lambda \hat{f}^b(x)
+    \end{equation}
+\end{enumerate}
+
+\subsection{Boosting 的三大核心参数 (Parameters)}
+\begin{itemize}
+    \item \textbf{$B$ (树的数量)}：通过交叉验证 (CV) 选择。如果 $B$ 过大，Boosting 也会发生过拟合 (如原书 Fig 8.13 所示)。
+    \item \textbf{$\lambda$ (收缩参数/学习率)}：通常是一个小的正数，如 $0.01$ 或 $0.001$。它控制了模型的学习速率，较小的 $\lambda$ 需要较大的 $B$。
+    \item \textbf{$d$ (树的深度)}：控制模型交互的深度 (interaction depth)。通常 $d=1$ (即“树桩” Stump) 就表现得非常出色 (works well)。
+\end{itemize}
+
+\section{贝叶斯加性回归树 (BART)}
+BART (Bayesian Additive Regression Trees) 是一种结合了贝叶斯先验与集成思想的算法。它引入了马尔可夫链蒙特卡洛 (Markov chain Monte Carlo, MCMC) 算法来进行拟合 (Algorithm 8.3)。
+
+\subsection{核心符号与部分残差 (Partial Residual)}
+定义 $K$ 为树的数量 (number of trees)，$B$ 为迭代的次数 (number of iterations)。
+令 $\hat{f}_k^b(x)$ 表示在第 $b$ 次迭代中，第 $k$ 棵回归树在 $x$ 处的预测值。
+
+在 BART 的后拟合 (Backfitting) 过程中，当我们要在第 $b$ 轮迭代更新第 $k$ 棵树时，我们需要剥离出这棵树需要专门负责拟合的\textbf{部分残差 (Partial Residual)} $r_i$：
+\begin{equation}
+    r_i = y_i - \sum_{k'<k} \hat{f}_{k'}^b(x_i) - \sum_{k'>k} \hat{f}_{k'}^{b-1}(x_i)
+\end{equation}
+\textbf{公式解析}：为了更新第 $k$ 棵树，我们从真实值 $y_i$ 中减去其他所有树的预测值。注意索引的区别：对于编号小于 $k$ 的树，它们在第 $b$ 轮已经更新过了，因此使用最新的 $\hat{f}^b$；而对于编号大于 $k$ 的树，它们还未更新，因此使用上一轮的 $\hat{f}^{b-1}$。
+
+\subsection{模型输出与预热期 (Burn-in)}
+在单次迭代 $b$ 结束后，该轮的整体输出为：
+\begin{equation}
+    \hat{f}^b(x) = \sum_{k=1}^K \hat{f}_k^b(x), \quad b=1, 2, \dots, B
+\end{equation}
+由于 MCMC 算法在初期未达到平稳分布，我们需要**丢弃前几次迭代的样本 (throw away first few, 称为预热期 burn-in)**，假设预热期长度为 $L$。最终的预测模型是剩余后验样本的均值：
+\begin{equation}
+    \hat{f}(x) = \frac{1}{B-L} \sum_{b=L+1}^B \hat{f}^b(x)
+\end{equation}
+
+\subsection{防止过拟合的机制与参数选择}
+BART 的核心优势在于\textbf{微调老树}。它通过贝叶斯先验限制树的规模，并在每轮迭代中对现有的树进行微小的增删改。这有效地防止了过拟合 (防 overfitting)，并减小了单棵树的规模。
+\begin{itemize}
+    \item 相比之下，Fig 8.13 展示了 Boosting 在树过多时容易出现的过拟合现象 (Boost: 过拟合)。
+    \item \textbf{参数选择}：通常选择较大的 $B$ 和 $K$，以及适中的预热期 $L$。
+\end{itemize}
+
+
+\section{总结与模型对比 (Summary of Tree-Based Methods)}
+在 ISLR 第 8.2.5 节中，作者对全章提到的树模型进行了横向对比。我们可以从模型架构、统计目标及实际表现三个维度进行总结。
+
+\subsection{集成方法架构对比}
+下表总结了本章四种核心集成方法的本质区别：
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{特征} & \textbf{Bagging} & \textbf{随机森林 (RF)} & \textbf{提升法 (Boosting)} & \textbf{BART} \\ \hline
+\textbf{生长方式} & 并行 (Parallel) & 并行 (Parallel) & 串行 (Sequential) & 协同循环 (Backfitting) \\ \hline
+\textbf{主要目标} & 降低方差 (Var) & 降低相关性 ($\rho$) & 降低偏差与方差 & 探索后验分布 \\ \hline
+\textbf{样本选择} & 自助法 (Bootstrap) & 自助法 (Bootstrap) & 原始数据 (拟合残差) & 原始数据 (正则化先验) \\ \hline
+\textbf{核心参数} & $B$ (树的数量) & $m$ (特征子集) & $\lambda, d, B$ & $K, B, L$ \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{偏差-方差权衡 (Bias-Variance Trade-off)}
+树模型的发展史实际上是人类在偏差与方差之间寻找平衡的艺术：
+\begin{itemize}
+    \item \textbf{单棵树}：如果长得太深，则偏差极低但方差巨大（过拟合）；如果太浅，则方差小但偏差大。
+    \item \textbf{Bagging / RF}：通过对多棵深树求平均，在保持低偏差的同时，利用大数定律将方差降低。
+    \item \textbf{Boosting}：从极浅的树（Stumps）开始，通过不断纠正残差来缓慢降低偏差。由于“学得慢”，它能极好地控制方差的增长。
+    \item \textbf{BART}：通过贝叶斯正则化先验强制每棵树都保持“弱”状态，利用 MCMC 采样避免了 Boosting 可能出现的过拟合风险。
+\end{itemize}
+
+\subsection{结论：如何选择模型？}
+\begin{enumerate}
+    \item \textbf{若首要任务是可解释性}：单棵决策树（剪枝后）是唯一选择，尽管其精度可能一般。
+    \item \textbf{若追求极致精度且数据量大}：Boosting 和 BART 通常表现最佳。Boosting 需要更仔细的交叉验证调参，而 BART 则能提供额外的预测不确定性（置信区间）。
+    \item \textbf{若追求“开箱即用”且稳健}：随机森林是首选。它对参数 $m$ 不算敏感，且由于是并行计算，易于在大规模数据集上分布式运行。
+\end{enumerate}
+
+\begin{remark}
+虽然集成学习牺牲了树结构的直观展示，但通过变量重要性图表 (Variable Importance Plots) 和部分相关图 (Partial Dependence Plots)，我们依然可以窥见黑盒内部，了解哪些特征对响应变量起到了决定性作用。
+\end{remark}
+
+
 
 \end{document}
