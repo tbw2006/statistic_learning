@@ -1,0 +1,115 @@
+% UTF8 表示使用通用国际字符作为内码，ctexart 表示这是一篇中文论文
+\documentclass[UTF8]{ctexart} 
+% 通过调用宏包 geometry 调整页面设置为 A4 纸，页边距 2.6 cm
+\usepackage[a4paper,margin=2.6cm]{geometry}
+
+\usepackage{amsmath, amssymb, amsthm} % 数学公式、符号、定理
+\usepackage{graphicx}                 % 插图
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
+
+% 设置文章标题 (注：根据笔记内容，此为第九章支持向量机，保留了你的原格式)
+\title{第八章讲义 (及第九章支持向量机)}
+\author{}
+\date{\today}
+
+% 设置环境 theorem
+\newtheorem{theorem}{定理}[section]
+\newtheorem{lemma}[theorem]{引理}
+\newtheorem{definition}[theorem]{定义}
+\newtheorem{remark}{注记}[section]
+\numberwithin{equation}{section}
+
+% 自定义命令
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+
+\begin{document}
+
+\maketitle
+
+\section{Ch9 支持向量机 (Support Vector Machines)}
+
+\subsection{9.1 最大间隔分类器 (Maximal Margin Classifier)}
+
+\subsubsection{9.1.1 什么是超平面 (What Is a Hyperplane?)}
+
+\begin{definition}
+在 $p$ 维空间中，超平面（Hyperplane）是一个维度为 $p-1$ 的平坦仿射子空间 (flat affine subspace)。
+\end{definition}
+
+对于 $p$ 维特征空间，超平面的数学方程可以表示为：
+\begin{equation}
+\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \dots + \beta_p X_p = 0
+\end{equation}
+为了书写简便，我们通常将其写成向量内积的形式。令特征向量 $X = (X_1, X_2, \dots, X_p)^T$，权重向量 $\beta = (\beta_1, \beta_2, \dots, \beta_p)^T$，则超平面方程等价于：
+\begin{equation}
+\beta^T X + \beta_0 = 0
+\end{equation}
+
+如果空间中的一个点 $X$ 满足 $\beta^T X + \beta_0 > 0$，则说明该点位于超平面的一侧；反之，若满足 $\beta^T X + \beta_0 < 0$，则该点位于超平面的另一侧。
+
+\subsubsection{9.1.2 使用分离超平面进行分类 (Classification Using a Separating Hyperplane)}
+
+假设我们有 $n$ 个训练观测样本：$x_1, \dots, x_n$，其中每个样本 $x_i \in \RR^p$。
+对应有两类标签：$y_1, \dots, y_n \in \{-1, 1\}$。
+
+如果存在一个超平面能够完美地将两类数据分离开来（Separating Hyperplane），那么它必须满足以下性质：
+\begin{align}
+\beta_0 + \beta_1 x_{i1} + \dots + \beta_p x_{ip} > 0 &\quad \text{如果 } y_i = 1 \\
+\beta_0 + \beta_1 x_{i1} + \dots + \beta_p x_{ip} < 0 &\quad \text{如果 } y_i = -1
+\end{align}
+由于标签 $y_i$ 的符号与表达式的值的符号在分类正确时是一致的，上述两个条件可以被等价地统一为一个极其简洁的数学不等式：
+\begin{equation}
+y_i (\beta_0 + \beta_1 x_{i1} + \dots + \beta_p x_{ip}) > 0, \quad \forall i = 1, \dots, n
+\end{equation}
+
+\paragraph{测试集的分类规则：}
+对于一个未知的测试观测点 $x^*$，我们只需将其坐标代入超平面函数 $f(x^*) = \beta_0 + \beta_1 x_1^* + \dots + \beta_p x_p^*$ 中，根据其符号（$\text{sgn}(f(x^*))$）来决定其所属的类别。
+
+\begin{remark}[分类的置信度]
+$|f(x^*)|$ 的大小（即量级）具有重要的几何意义。它表示点 $x^*$ 距离超平面的远近。$|f(x^*)|$ 的值越大，说明点离分类边界越远，我们对其分类结果的置信度（Confidence）就越高。
+\end{remark}
+
+
+\subsubsection{9.1.3 最大间隔分类器 (The Maximal Margin Classifier)}
+
+\begin{remark}[原文知识点扩展：图 9.2 与图 9.3 的几何直观]
+如果数据能够被一个超平面完美线性分离，那么实际上存在\textbf{无限多个}这样的超平面（如书中图 9.2 所示）。因为只要我们稍微平移或旋转这个超平面且不碰到任何数据点，它依然是一个完美的分离超平面。
+
+那么，在这无限多个超平面中，应该选择哪一个？自然的选择是“在两类数据中间最宽阔的那个”。这就是书中图 9.3 所展示的核心思想：
+\begin{itemize}
+    \item \textbf{最大间隔超平面 (Maximal Margin Hyperplane)}：也称为最优分离超平面，是距离所有训练观测点最远的那个分离超平面。
+    \item \textbf{间隔 (Margin, $M$)}：定义为距离超平面最近的训练点到该超平面的垂直几何距离。在图 9.3 中，超平面两侧平行于它的虚线之间的距离就是 $2M$。我们希望这个 $M$ 越大越好。
+\end{itemize}
+\end{remark}
+
+\paragraph{支持向量 (Support Vectors)：}
+在图 9.3 中，那些恰好落在间隔虚线边界上的点，被称为支持向量。
+它们在几何上到最大间隔超平面的距离严格等于 $M$。它们之所以被称为“支持”向量，是因为它们“撑起”了整个间隔边界——\textbf{如果这些点发生移动，最大间隔超平面的位置也会随之改变}。相反，任何不在边界上的非支持向量，即使在合理范围内随意移动，也完全不会影响超平面的最终位置。这种只依赖少数关键点的性质，正是 SVM 的精妙之处。
+
+
+\subsubsection{9.1.4 最大间隔分类器的构造 (Construction of the Maximal Margin Classifier)}
+
+根据上述几何直观，寻找最大间隔超平面的过程，可以转化为一个带有约束的优化问题：
+
+\begin{align}
+\max_{\beta_0, \beta_1, \dots, \beta_p, M} \quad & M \\
+\text{subject to } \quad & \sum_{j=1}^p \beta_j^2 = 1 \label{eq:norm_constraint} \\
+& y_i (\beta_0 + \beta_1 x_{i1} + \dots + \beta_p x_{ip}) \ge M, \quad \forall i=1,\dots,n \label{eq:margin_constraint}
+\end{align}
+
+\begin{remark}[对约束条件的解析]
+这里的约束条件 \eqref{eq:norm_constraint} 即 $\|\beta\| = 1$ 是极其关键的。
+在解析几何中，点 $x_i$ 到超平面 $\beta^T x + \beta_0 = 0$ 的垂直几何距离公式为：
+$$\text{Distance} = \frac{y_i (\beta^T x_i + \beta_0)}{\|\beta\|}$$
+只有当我们强制限定法向量的长度 $\sum_{j=1}^p \beta_j^2 = 1$ 时，分母才变为 1。此时，不等式 \eqref{eq:margin_constraint} 左侧的代数表达式 $y_i f(x_i)$ 才严格等于真实的几何垂直距离。因此，整个优化问题的本质就是在所有能够正确分离数据的超平面中，最大化那个最小的几何距离 $M$。
+\end{remark}
+
+
+\subsubsection{9.1.5 不可分的情况 (The Non-separable Case)}
+
+如果两类数据点相互交叠，不存在任何一个可以将它们完美分离的超平面。在这种情况下，上述的优化问题将存在矛盾（无可行解），最大间隔分类器将会失效。
+
+为了解决这一问题，我们需要对“完美分离”这一严苛条件进行放松，允许少数点跨越边界甚至被错误分类，这便引出了下一节的内容：\textbf{支持向量分类器 (Support Vector Classifier, 引入软间隔)}。
+
+\end{document}
