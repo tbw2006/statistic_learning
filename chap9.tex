@@ -71,17 +71,30 @@ $|f(x^*)|$ 的大小（即量级）具有重要的几何意义。它表示点 $x
 \end{remark}
 
 
-\subsubsection{9.1.3 最大间隔分类器 (The Maximal Margin Classifier)}
 
-\begin{remark}[原文知识点扩展：图 9.2 与图 9.3 的几何直观]
-如果数据能够被一个超平面完美线性分离，那么实际上存在\textbf{无限多个}这样的超平面（如书中图 9.2 所示）。因为只要我们稍微平移或旋转这个超平面且不碰到任何数据点，它依然是一个完美的分离超平面。
+\begin{proof}[证明：样本点到超平面的几何距离公式]
 
-那么，在这无限多个超平面中，应该选择哪一个？自然的选择是“在两类数据中间最宽阔的那个”。这就是书中图 9.3 所展示的核心思想：
-\begin{itemize}
-    \item \textbf{最大间隔超平面 (Maximal Margin Hyperplane)}：也称为最优分离超平面，是距离所有训练观测点最远的那个分离超平面。
-    \item \textbf{间隔 (Margin, $M$)}：定义为距离超平面最近的训练点到该超平面的垂直几何距离。在图 9.3 中，超平面两侧平行于它的虚线之间的距离就是 $2M$。我们希望这个 $M$ 越大越好。
-\end{itemize}
-\end{remark}
+
+设超平面方程为 $H: \beta^T x + \beta_0 = 0$。对于空间中任意一点 $x_i$，设其在超平面 $H$ 上的正交投影点为 $x_i'$。
+
+由于 $\beta$ 是超平面 $H$ 的法向量，因此投影向量 $\vec{x_i' x_i} = x_i - x_i'$ 必然与法向量 $\beta$ 平行。我们可以将其表示为：
+\[ x_i - x_i' = d \cdot \frac{\beta}{\|\beta\|} \]
+其中，常数 $d$ 的绝对值 $|d|$ 即为点 $x_i$ 到超平面的垂直几何距离。
+
+等式两边同时左乘 $\beta^T$：
+\[ \beta^T x_i - \beta^T x_i' = d \cdot \frac{\beta^T \beta}{\|\beta\|} \]
+由于 $\beta^T \beta = \|\beta\|^2$，上式右侧可化简为 $d \|\beta\|$。
+
+又因为投影点 $x_i'$ 位于超平面 $H$ 上，必须满足 $\beta^T x_i' + \beta_0 = 0$，即 $\beta^T x_i' = -\beta_0$。代入上式可得：
+\[ \beta^T x_i + \beta_0 = d \|\beta\| \implies d = \frac{\beta^T x_i + \beta_0}{\|\beta\|} \]
+
+取绝对值即得到点到超平面的几何距离：
+\[ \text{Distance} = \frac{|\beta^T x_i + \beta_0|}{\|\beta\|} \]
+考虑到对于完美分类的超平面，同号性质 $y_i(\beta^T x_i + \beta_0) > 0$ 恒成立，我们可以利用标签 $y_i \in \{-1, 1\}$ 将绝对值符号去掉，得到最终的几何距离公式：
+\begin{equation}
+ \text{Distance} = \frac{y_i(\beta^T x_i + \beta_0)}{\|\beta\|} \label{eq:distance_hyperplane_to_point}
+\end{equation}
+\end{proof}
 
 \paragraph{支持向量 (Support Vectors)：}
 在图 9.3 中，那些恰好落在间隔虚线边界上的点，被称为支持向量。
@@ -105,6 +118,83 @@ $$\text{Distance} = \frac{y_i (\beta^T x_i + \beta_0)}{\|\beta\|}$$
 只有当我们强制限定法向量的长度 $\sum_{j=1}^p \beta_j^2 = 1$ 时，分母才变为 1。此时，不等式 \eqref{eq:margin_constraint} 左侧的代数表达式 $y_i f(x_i)$ 才严格等于真实的几何垂直距离。因此，整个优化问题的本质就是在所有能够正确分离数据的超平面中，最大化那个最小的几何距离 $M$。
 \end{remark}
 
+
+\paragraph{推导：从几何直观到凸二次规划的等价转化}
+
+在结合几何直观时，我们得到的原始优化问题为：
+\begin{align*}
+\max_{\beta_0, \beta, M} \quad & M \\
+\text{subject to } \quad & \|\beta\| = 1 \\
+& y_i (\beta^T x_i + \beta_0) \ge M, \quad \forall i=1,\dots,n
+\end{align*}
+这个优化问题包含一个非凸的球面约束 $\|\beta\| = 1$（或者写成 $\sum \beta_j^2 = 1$），在数学优化中极其难以直接求解。为了将其转化为易于求解的凸优化问题，我们需要利用超平面的\textbf{尺度缩放不变性 (Scaling Invariance)}。
+
+\begin{proof}[优化问题的等价转化推导]
+\textbf{第一步：取消法向量的单位长度限制。}
+
+回顾真正的几何距离公式为 $d = \frac{y_i (\beta^T x_i + \beta_0)}{\|\beta\|}$（公式\ref{eq:distance_hyperplane_to_point}）。如果不强制限制 $\|\beta\|=1$，我们的本质目标是最大化所有样本点中最小的几何距离：
+\[ \max_{\beta, \beta_0} \left( \min_{i} \frac{y_i (\beta^T x_i + \beta_0)}{\|\beta\|} \right) \]
+
+\textbf{第二步：利用尺度缩放不变性固定“函数间隔”。}
+
+对于分离超平面方程 $\beta^T x + \beta_0 = 0$，如果我们将其参数 $\beta$ 和 $\beta_0$ 同时乘以任意一个正数常数 $k$，等式依然成立，超平面的几何位置完全不发生改变。
+但是，点代入方程得到的值，即\textbf{函数间隔} $y_i (\beta^T x_i + \beta_0)$ 会相应地放大或缩小 $k$ 倍。
+
+既然这种缩放不影响分类边界的几何本质，我们不妨主动选择一个特定的缩放比例，使得离超平面\textbf{最近}的样本点（即落在间隔边界上的支持向量），其函数间隔恰好等于 1：
+\[ \min_{i} y_i (\beta^T x_i + \beta_0) = 1 \]
+这就意味着，对于所有的训练样本，都必然满足：
+\[ y_i (\beta^T x_i + \beta_0) \ge 1, \quad \forall i=1,\dots,n \]
+
+\textbf{第三步：目标函数的等价转化。}
+
+在上述特定的缩放标准下，代入原本的几何距离公式，最小的几何距离（即我们需要最大化的间隔 $M$）就简化成了：
+\[ M = \frac{1}{\|\beta\|} \]
+
+因此，“最大化间隔 $M$” 在数学上等价于“最大化 $\frac{1}{\|\beta\|}$”，进而等价于“最小化法向量的长度 $\|\beta\|$”。
+
+为了在最优化过程中方便求导，并且符合现成的二次规划（Quadratic Programming, QP）求解器的标准形式，我们通常将其进一步等价替换为最小化 $\frac{1}{2}\|\beta\|^2$。
+
+至此，原本带有非凸约束的复杂问题，被完美且等价地转化为了\textbf{标准的凸二次规划问题（支持向量机基本型）}：
+\begin{align}
+\min_{\beta_0, \beta} \quad & \frac{1}{2} \|\beta\|^2 \label{eq:svm_primal_obj} \\
+\text{subject to } \quad & y_i (\beta^T x_i + \beta_0) \ge 1, \quad \forall i=1,\dots,n \label{eq:svm_primal_const}
+\end{align}
+\end{proof}
+
+
+\begin{proof}[证明：最优超平面的拉格朗日对偶求解]
+为了求解上述带有不等式约束的优化问题，我们为每个约束条件 \eqref{eq:svm_primal_const} 引入拉格朗日乘子 $\alpha_i \ge 0$，构造拉格朗日函数：
+\[ L(\beta, \beta_0, \alpha) = \frac{1}{2} \beta^T \beta + \sum_{i=1}^n \alpha_i \left[ 1 - y_i(\beta^T x_i + \beta_0) \right] \]
+
+根据 KKT 条件，最优解必然满足拉格朗日函数对原变量的偏导数为零：
+\begin{enumerate}
+    \item \textbf{对 $\beta$ 求偏导：}
+    \[ \frac{\partial L}{\partial \beta} = \beta - \sum_{i=1}^n \alpha_i y_i x_i = 0 \implies \beta = \sum_{i=1}^n \alpha_i y_i x_i \]
+    \textit{（注：这表明最优超平面的法向量仅仅是部分样本点的线性组合。）}
+    
+    \item \textbf{对 $\beta_0$ 求偏导：}
+    \[ \frac{\partial L}{\partial \beta_0} = -\sum_{i=1}^n \alpha_i y_i = 0 \implies \sum_{i=1}^n \alpha_i y_i = 0 \]
+\end{enumerate}
+
+将上述两个结论代回拉格朗日函数中，展开并化简以消去原变量 $\beta$ 和 $\beta_0$：
+\begin{align*}
+L(\alpha) &= \frac{1}{2} \left( \sum_{i=1}^n \alpha_i y_i x_i \right)^T \left( \sum_{j=1}^n \alpha_j y_j x_j \right) + \sum_{i=1}^n \alpha_i - \sum_{i=1}^n \alpha_i y_i \left( \sum_{j=1}^n \alpha_j y_j x_j \right)^T x_i - \beta_0 \sum_{i=1}^n \alpha_i y_i \\
+&= \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j x_i^T x_j + \sum_{i=1}^n \alpha_i - \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j x_i^T x_j - 0 \\
+&= \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j x_i^T x_j
+\end{align*}
+
+由此，我们将主问题转化为了仅依赖于拉格朗日乘子 $\alpha$ 的\textbf{对偶问题 (Dual Problem)}：
+\begin{align*}
+\max_{\alpha} \quad & \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j x_i^T x_j \\
+\text{subject to } \quad & \alpha_i \ge 0, \quad i=1,\dots,n \\
+& \sum_{i=1}^n \alpha_i y_i = 0
+\end{align*}
+
+通过 SMO 等算法解出极值 $\alpha^*$ 后，即可反求得法向量 $\beta = \sum_{i=1}^n \alpha_i y_i x_i$。
+最后，利用 KKT 条件中的\textbf{互补松弛条件} $\alpha_i [1 - y_i(\beta^T x_i + \beta_0)] = 0$，任取一个 $\alpha_s > 0$ 的点（即支持向量），代入等式 $y_s(\beta^T x_s + \beta_0) = 1$ 即可求出截距 $\beta_0$：
+\[ \beta_0 = y_s - \beta^T x_s \]
+至此，最优分离超平面完全确定。
+\end{proof}
 
 \subsubsection{9.1.5 不可分的情况 (The Non-separable Case)}
 
