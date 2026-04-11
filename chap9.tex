@@ -8,7 +8,7 @@
 \usepackage[colorlinks=true,linkcolor=blue]{hyperref} % 超链接与交叉引用
 
 % 设置文章标题 (注：根据笔记内容，此为第九章支持向量机，保留了你的原格式)
-\title{第八章讲义 (及第九章支持向量机)}
+\title{第九章讲义}
 \author{}
 \date{\today}
 
@@ -201,5 +201,400 @@ L(\alpha) &= \frac{1}{2} \left( \sum_{i=1}^n \alpha_i y_i x_i \right)^T \left( \
 如果两类数据点相互交叠，不存在任何一个可以将它们完美分离的超平面。在这种情况下，上述的优化问题将存在矛盾（无可行解），最大间隔分类器将会失效。
 
 为了解决这一问题，我们需要对“完美分离”这一严苛条件进行放松，允许少数点跨越边界甚至被错误分类，这便引出了下一节的内容：\textbf{支持向量分类器 (Support Vector Classifier, 引入软间隔)}。
+
+
+
+
+
+\subsubsection{9.2.1 引入动机}
+
+在 9.1 节中讨论的最大间隔分类器（Hard Margin Classifier）要求所有样本点必须被完美且毫无差错地分到超平面的两侧。然而在实际应用中，这种严格的超平面往往面临以下两个致命缺陷：
+\begin{enumerate}
+    \item \textbf{不一定存在}：当数据在空间中线性不可分（即存在类别交叠）时，根本找不到这样的完美超平面。
+    \item \textbf{极其缺乏鲁棒性}：即使完美超平面存在，它也可能对个别样本点（噪声或异常值）过于敏感。个别极端样本的轻微移动，可能导致决策边界发生巨大改变，进而导致间隔过小，引发严重的过拟合（Overfitting）。
+\end{enumerate}
+
+因此，我们不应追求对训练数据的“完美分类”，而是允许少量样本点违规越界。这种带有“软间隔”的分类器被称为\textbf{支持向量分类器 (Support Vector Classifier, SVC)}。它具有以下优势：
+\begin{itemize}
+    \item 面对新观测数据时\textbf{更稳健 (Robust)}。
+    \item 虽然可能牺牲了极少数点的分类准确率，但能换取对\textbf{绝大多数样本更好的整体分类效果}。
+\end{itemize}
+
+\vspace{1em}
+
+\subsubsection{9.2.2 数学刻画与对偶推导}
+
+\paragraph{1. 预算式刻画 (Budget Formulation)}
+支持向量分类器的核心思想是最大化软间隔 $M$，同时允许一定程度的违规。其标准的数学优化问题可表述如下：
+\begin{align}
+    \text{maximize}_{\beta_0, \beta_1, \dots, \beta_p, \epsilon_1, \dots, \epsilon_n, M} \quad & M \nonumber \\
+    \text{subject to} \quad & \sum_{j=1}^p \beta_j^2 = 1 \label{eq:norm_constraint} \\
+    & y_i(\beta_0 + \beta^T x_i) \ge M(1 - \epsilon_i), \quad \forall i=1,\dots,n \label{eq:margin_constraint} \\
+    & \epsilon_i \ge 0, \quad \sum_{i=1}^n \epsilon_i \le C \label{eq:slack_constraint}
+\end{align}
+
+\begin{definition}[松弛变量与预算参数]
+\begin{itemize}
+    \item $\epsilon_1, \dots, \epsilon_n$ 称为\textbf{松弛变量 (Slack Variables)}，用于刻画每个样本点违反间隔规则的程度：
+    \begin{itemize}
+        \item 若 $\epsilon_i = 0$：样本点位于间隔的正确一侧（遵守规则）。
+        \item 若 $\epsilon_i \in (0,1)$：样本点侵入了间隔内部，但依然在超平面的正确一侧。
+        \item 若 $\epsilon_i > 1$：样本点越过了超平面，位于错误一侧（被误分类）。
+    \end{itemize}
+    \item $C \ge 0$ 是\textbf{预算参数 (Tuning Parameter)}，它限制了模型对总违规程度的容忍上限（Budget of amount that margin can be violated）。
+\end{itemize}
+\end{definition}
+
+\begin{remark}[参数 $C$ 的偏差-方差权衡]
+\begin{itemize}
+    \item 当 $C=0$ 时，所有的 $\epsilon_i$ 必须为 0，模型退化为 9.1 节的最大间隔分类器。
+    \item 当 $C$ 增大时，容忍度增加，间隔 $M$ 会变宽。此时允许更多的数据点成为支持向量，模型更加平滑，呈现\textbf{高偏差、低方差 (High Bias, Low Variance)} 的特性。
+    \item 当 $C$ 减小时，容忍度降低，间隔 $M$ 会变窄。此时支持向量变少，模型对训练数据拟合更严格，呈现\textbf{低偏差、高方差}的特性。
+    \item 在实际应用中，$C$ 的最优取值通常通过交叉验证（Cross-Validation）来选择：
+    $$CV_{(K)}(C) = \frac{1}{K} \sum_{k=1}^K E_k(C), \quad \text{其中 } E_k(C) = \frac{1}{n_k} \sum_{i \in D_k} I\{y_i \neq \text{sgn}(\hat{f}_C^{-k}(x_i))\}$$
+\end{itemize}
+\end{remark}
+
+\paragraph{2. 转化为惩罚式问题}
+在实际求解与后续的核技巧推导中，我们通常将上述“预算式”等价转化为“惩罚式”。
+
+令 $\beta^* = \frac{\beta}{M}, \quad \beta_0^* = \frac{\beta_0}{M}$。由于 $\|\beta\| = 1$，显然有 $\|\beta^*\| = \frac{1}{M}$。
+因此，“最大化间隔 $M$” 完全等价于 “最小化法向量的范数 $\|\beta^*\|$”，即 $\max M \iff \min \frac{1}{2}\|\beta^*\|^2$。
+
+将 $\beta = M\beta^*$ 和 $\beta_0 = M\beta_0^*$ 代入不等式约束 \eqref{eq:margin_constraint}：
+\begin{align*}
+    y_i (M \beta^{*T} x_i + M \beta_0^*) &\ge M(1-\epsilon_i) \\
+    \implies y_i (\beta^{*T} x_i + \beta_0^*) &\ge 1-\epsilon_i
+\end{align*}
+
+根据拉格朗日对偶性，将总量约束 $\sum \epsilon_i \le C$ 转化为目标函数中的线性惩罚项，原问题等价转化为：
+\begin{align}
+    \min_{\beta^*, \beta_0^*, \epsilon} \quad & \frac{1}{2}\|\beta^*\|^2 + C' \sum_{i=1}^n \epsilon_i \label{eq:penalty_form} \\
+    \text{s.t.} \quad & y_i(\beta^{*T} x_i + \beta_0^*) \ge 1 - \epsilon_i, \quad \forall i \nonumber \\
+    & \epsilon_i \ge 0, \quad \forall i \nonumber
+\end{align}
+\textit{注：为书写简洁，下文推导中将隐去 $\beta^*$ 的星号，并使用 $C$ 代替惩罚系数 $C'$。}
+
+\paragraph{3. 拉格朗日对偶问题的推导}
+首先将所有的约束条件转化为 $\le 0$ 的标准形式：
+\begin{align*}
+    1 - \epsilon_i - y_i(\beta^T x_i + \beta_0) &\le 0 \\
+    - \epsilon_i &\le 0
+\end{align*}
+引入非负的拉格朗日乘子 \textcolor{red}{$\alpha_i \ge 0, \mu_i \ge 0$}，构造拉格朗日函数 $L$：
+$$L(\beta, \beta_0, \epsilon, \alpha, \mu) = \frac{1}{2}\|\beta\|^2 + C \sum_{i=1}^n \epsilon_i + \sum_{i=1}^n \alpha_i [1 - \epsilon_i - y_i(\beta^T x_i + \beta_0)] + \sum_{i=1}^n \mu_i(-\epsilon_i)$$
+
+对各项进行重新分组与合并，得到：
+$$L = \frac{1}{2}\|\beta\|^2 - \sum_{i=1}^n \alpha_i y_i (\beta^T x_i) - \beta_0 \underbrace{\sum_{i=1}^n \alpha_i y_i}_{=0} + \sum_{i=1}^n \epsilon_i \underbrace{(C - \alpha_i - \mu_i)}_{=0} + \sum_{i=1}^n \alpha_i$$
+
+对原变量求偏导并令其为零（KKT 平稳性条件）：
+\begin{align}
+    \frac{\partial L}{\partial \beta} &= \beta - \sum_{i=1}^n \alpha_i y_i x_i = 0 \implies \beta = \sum_{i=1}^n \alpha_i y_i x_i \label{eq:grad_beta} \\
+    \frac{\partial L}{\partial \beta_0} &= -\sum_{i=1}^n \alpha_i y_i = 0 \implies \sum_{i=1}^n \alpha_i y_i = 0 \label{eq:grad_beta0} \\
+    \frac{\partial L}{\partial \epsilon_i} &= C - \alpha_i - \mu_i = 0 \implies \alpha_i + \mu_i = C \label{eq:grad_epsilon}
+\end{align}
+由 $\mu_i \ge 0$ 及等式 \eqref{eq:grad_epsilon}，我们得到了极其重要的盒子约束：\textcolor{red}{$0 \le \alpha_i \le C$}。
+
+将上述偏导结果 \eqref{eq:grad_beta}, \eqref{eq:grad_beta0}, \eqref{eq:grad_epsilon} 回代入拉格朗日函数 $L$ 中，消去主变量 $\beta, \beta_0, \epsilon$：
+\begin{align*}
+    L &= \frac{1}{2} \left( \sum_{i=1}^n \alpha_i y_i x_i \right)^T \left( \sum_{j=1}^n \alpha_j y_j x_j \right) - \sum_{i=1}^n \alpha_i y_i \left( \sum_{j=1}^n \alpha_j y_j x_j^T x_i \right) + \sum_{i=1}^n \alpha_i \\
+    &= \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j (x_i^T x_j) - \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j (x_i^T x_j) + \sum_{i=1}^n \alpha_i \\
+    &= \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j (x_i^T x_j)
+\end{align*}
+
+最终，我们得到了支持向量机的\textbf{对偶二次规划问题}：
+\begin{center}
+    \fbox{
+    \parbox{0.8\textwidth}{
+        \begin{align*}
+            \max_{\alpha} \quad & \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j (x_i^T x_j) \\
+            \textcolor{red}{\text{s.t.}} \quad & \textcolor{red}{0 \le \alpha_i \le C, \quad \forall i=1,\dots,n} \\
+            & \textcolor{red}{\sum_{i=1}^n \alpha_i y_i = 0}
+        \end{align*}
+    }
+    }
+\end{center}
+
+% ==================== 接上文 9.2 节 ====================
+
+
+\begin{theorem}[互补松弛条件的数学起源]
+在满足 Slater 条件的凸优化问题（如支持向量机）中，强对偶性成立，即原问题最优值 $p^*$ 与对偶问题最优值 $d^*$ 相等（对偶间隙为零）。互补松弛条件正是强对偶性成立的必然代数结果。
+\end{theorem}
+
+\begin{proof}
+考虑标准的不等式约束优化主问题：
+\[ p^* = \min_x f(x) \quad \text{s.t. } g_i(x) \le 0, \quad i = 1, \dots, m \]
+设 $x^*$ 为主问题的最优解，则 $p^* = f(x^*)$，且 $x^*$ 必定满足可行性条件 $g_i(x^*) \le 0$。
+
+构造拉格朗日函数：
+\[ L(x, \alpha) = f(x) + \sum_{i=1}^m \alpha_i g_i(x), \quad (\alpha_i \ge 0) \]
+对偶问题目标函数定义为 $\theta_D(\alpha) = \min_x L(x, \alpha)$。设 $\alpha^*$ 为对偶问题的最优解，对应的最优值为 $d^* = \theta_D(\alpha^*)$。
+
+根据极小值的定义，我们有以下不等式链：
+\begin{align}
+    d^* &= \theta_D(\alpha^*) \nonumber \\
+    &= \min_x \left( f(x) + \sum_{i=1}^m \alpha_i^* g_i(x) \right) \label{eq:proof_step1} \\
+    &\le f(x^*) + \sum_{i=1}^m \alpha_i^* g_i(x^*) \label{eq:proof_step2} \\
+    &\le f(x^*) \label{eq:proof_step3} \\
+    &= p^* \nonumber
+\end{align}
+
+\textbf{对不等式链的解析：}
+\begin{itemize}
+    \item 从 \eqref{eq:proof_step1} 到 \eqref{eq:proof_step2}：因为 $\min_x$ 是在整个空间取极小值，而 $x^*$ 只是空间中的某一个特定点，所以全局极小值必然 $\le$ 在特定点 $x^*$ 处的函数值。
+    \item 从 \eqref{eq:proof_step2} 到 \eqref{eq:proof_step3}：因为乘子 $\alpha_i^* \ge 0$，且 $x^*$ 满足原约束 $g_i(x^*) \le 0$，所以求和号中的每一项都是非正数，即 $\alpha_i^* g_i(x^*) \le 0$。因此，加上一堆非正数后，结果必然 $\le f(x^*)$。
+\end{itemize}
+
+\textbf{强对偶性的强力干预：}
+由于支持向量机是严格凸优化问题且满足 Slater 条件，\textbf{强对偶性成立}，即对偶间隙为 0：
+\[ d^* = p^* \]
+
+既然不等式链的最左端 ($d^*$) 严格等于最右端 ($p^*$)，那么中间所有的 “$\le$” 都必须被强行挤压成严格的等号 “$=$”。
+特别地，由 \eqref{eq:proof_step2} 等于 \eqref{eq:proof_step3}，我们得到：
+\[ f(x^*) + \sum_{i=1}^m \alpha_i^* g_i(x^*) = f(x^*) \implies \sum_{i=1}^m \alpha_i^* g_i(x^*) = 0 \]
+
+既然一堆非正数（$\alpha_i^* g_i(x^*) \le 0$）相加等于 0，在数学上唯一的可能是：\textbf{每一项都必须严格等于 0}。
+因此，对于任意 $i = 1, \dots, m$，必然有：
+\[ \alpha_i^* g_i(x^*) = 0 \]
+这就严谨地证明了 KKT 条件中的互补松弛条件。
+\end{proof}
+
+
+\paragraph{4. KKT 互补松弛条件与支持向量的定义}
+
+在最优化理论中，由于软间隔支持向量机满足强对偶性，最优点处必须严格满足 KKT（Karush-Kuhn-Tucker）条件。其中最核心的是\textbf{互补松弛条件 (Complementary Slackness)}：
+\begin{align}
+    \alpha_i [1 - \epsilon_i - y_i(\beta^T x_i + \beta_0)] &= 0 \label{eq:kkt_alpha} \\
+    \mu_i \epsilon_i &= 0 \label{eq:kkt_mu}
+\end{align}
+回顾我们之前求导得到的结论 $\alpha_i + \mu_i = C$，即 $\mu_i = C - \alpha_i$。代入式 \eqref{eq:kkt_mu} 中，得到极其关键的等式：
+\begin{equation}
+    (C - \alpha_i) \epsilon_i = 0 \label{eq:kkt_combined}
+\end{equation}
+
+结合原约束条件（$y_i(\beta^T x_i + \beta_0) \ge 1 - \epsilon_i$ 以及 $\epsilon_i \ge 0, \alpha_i \ge 0, \mu_i \ge 0$），我们可以对任意样本点 $x_i$ 的拉格朗日乘子 $\alpha_i$ 的取值进行严格的分类讨论：
+
+\begin{itemize}
+    \item \textbf{情形一：当 $\alpha_i = 0$ 时} \\
+    此时 $C - \alpha_i = C > 0$。由式 \eqref{eq:kkt_combined} 可知，必有 $\epsilon_i = 0$。\\
+    此时样本满足 $y_i(\beta^T x_i + \beta_0) \ge 1$。
+    \textbf{几何意义}：该样本点不仅被正确分类，而且安全地落在间隔边界之外。它对模型毫无影响。
+
+    \item \textbf{情形二：当 $0 < \alpha_i < C$ 时} \\
+    既然 $\alpha_i \neq C$，则 $C - \alpha_i > 0$，由式 \eqref{eq:kkt_combined} 得 $\epsilon_i = 0$。\\
+    又因为 $\alpha_i > 0$，由式 \eqref{eq:kkt_alpha} 得中括号内必定为 0，即 \textcolor{red}{$y_i(\beta^T x_i + \beta_0) = 1$}。\\
+    \textbf{几何意义}：松弛变量为 0 且函数间隔恰好为 1，说明该样本点\textbf{精准地落在间隔边界（虚线）上}。这些点被称为“自由支持向量”。
+
+    \item \textbf{情形三：当 $\alpha_i = C$ 时} \\
+    此时 $C - \alpha_i = 0$，式 \eqref{eq:kkt_combined} 成立，故 $\epsilon_i$ 摆脱了为 0 的限制，可以取任意 $\epsilon_i > 0$ 的值。\\
+    因为 $\alpha_i = C > 0$，由式 \eqref{eq:kkt_alpha} 依然有 $y_i(\beta^T x_i + \beta_0) = 1 - \epsilon_i$。\\
+    \textbf{几何意义}：
+    \begin{itemize}
+        \item 若 $0 < \epsilon_i \le 1$：函数间隔在 $[0, 1)$ 之间，样本点侵入间隔内部，但依然被正确分类。
+        \item 若 $\epsilon_i > 1$：样本点越过了超平面，被错误分类。
+    \end{itemize}
+    这些点被称为“边界支持向量”，它们对超平面的拉扯力达到了上限 $C$。
+\end{itemize}
+
+\begin{definition}[支持向量 (Support Vectors)]
+将上述偏导结果 $\beta = \sum_{i=1}^n \alpha_i y_i x_i$ 代入决策函数，得到：
+$$ f(x) = \beta_0 + \sum_{i=1}^n \alpha_i y_i (x_i^T x) $$
+可见，对于 $\alpha_i = 0$ 的样本，它们在求和中直接消失了。对最终分类边界起决定性支撑作用的，仅仅是那些 \textcolor{red}{$\alpha_i > 0$} 的样本点，这些点在几何上要么落在间隔边界上，要么违规侵入间隔。我们称这些点为\textbf{支持向量 (Support Vectors)}。
+\end{definition}
+
+\begin{remark}[求解算法]
+由于对偶问题是一个带有盒子约束的凸二次规划问题，当样本量极大时，标准求解器效率极低。实践中广泛使用 \textbf{SMO (Sequential Minimal Optimization, 序列最小最优化)} 算法进行高效求解。
+\end{remark}
+
+\vspace{2em}
+
+
+\subsection{支持向量机与核技巧 (Support Vector Machines and Kernels)}
+
+\subsubsection*{9.3.1 非线性决策边界与特征空间的扩充}
+
+在之前的模型（最大间隔分类器和软间隔分类器）中，我们的决策边界始终是\textbf{线性}的，即形式为 $f(x) = \beta_0 + \beta_1 x_1 + \dots + \beta_p x_p$ 的超平面。
+
+然而，面对真实世界中呈现非线性分布的数据（例如同心圆分布的类别），线性超平面无能为力。一个自然的解决思路是：\textbf{扩大特征空间 (Enlarge feature space)}。
+例如，我们可以人为地向原特征中引入多项式项（如 $X_1^2, X_1 X_2, X_2^2, \dots$）。数据在扩充后的高维特征空间中可能是线性可分的，而在投影回原始低维空间时，就会表现为完美的非线性决策边界。
+
+\textbf{痛点：维度灾难 (Curse of Dimensionality)}。如果直接进行高维特征映射，特征数量会呈指数级爆炸，导致极大的计算量甚至让计算机内存崩溃。
+
+\textbf{破局点：内积的奇迹}。
+请重新审视我们刚刚推导出的支持向量分类器的数学结构：
+\begin{align*}
+    \text{优化目标 (对偶问题)}: \quad & \max_\alpha \sum_{i=1}^n \alpha_i - \frac{1}{2} \sum_{i=1}^n \sum_{j=1}^n \alpha_i \alpha_j y_i y_j \textcolor{red}{\langle x_i, x_j \rangle} \\
+    \text{新样本判别函数}: \quad & f(x) = \beta_0 + \sum_{i \in S} \alpha_i y_i \textcolor{red}{\langle x_i, x \rangle}
+\end{align*}
+注：这里 $\langle x_i, x_j \rangle = x_i^T x_j$ 表示向量的内积。
+
+我们惊奇地发现：\textbf{无论是训练过程的优化，还是最终的预测，原始数据 $x$ 永远只以“内积”的形式出现！} 这启发我们引入一个极其优雅的数学工具——核函数。
+
+\vspace{1em}
+
+\subsubsection{9.3.2 核函数 (Kernel Function)}
+
+\begin{definition}[核函数]
+设 $\mathcal{X}$ 是原始的输入空间（通常是 $\RR^p$ 及其子集），$\mathcal{H}$ 是扩充后的高维特征空间（一个希尔伯特空间，Hilbert Space）。假设存在一个映射：
+$$ \Phi: \mathcal{X} \to \mathcal{H} $$
+如果在原始空间 $\mathcal{X}$ 中存在一个函数 $K(x, z)$，使得对于任意的 $x, z \in \mathcal{X}$，都满足：
+$$ K(x, z) = \langle \Phi(x), \Phi(z) \rangle_{\mathcal{H}} $$
+则称 $K(x, z)$ 为\textbf{核函数 (Kernel Function)}。
+\end{definition}
+
+\textbf{核技巧 (Kernel Trick) 的伟大之处在于：}
+\begin{center}
+    \textcolor{red}{$K(x_i, x_j) = \langle \Phi(x_i), \Phi(x_j) \rangle$ 并不需要我们显式地写出或计算极其复杂的映射 $\Phi(x)$。}
+\end{center}
+我们只需要将对偶问题和判别函数中的普通内积 $\langle x_i, x_j \rangle$ 直接替换为核函数 $K(x_i, x_j)$。这样，我们就实现了\textbf{在低维空间中进行廉价的计算，却完美等效于在极高维甚至无限维特征空间中进行线性分类的效果}。这就是真正的\textbf{支持向量机 (SVM)}。
+
+\paragraph{常见的核函数：}
+\begin{enumerate}
+    \item \textbf{多项式核 (Polynomial Kernel)}：
+    $$ K(x_i, x_j) = (1 + x_i^T x_j)^d $$
+    其中 $d$ 为多项式的度数。它等效于将特征映射到一个包含所有 $d$ 阶及其以下多项式组合的高维空间。
+    
+    \item \textbf{径向基函数核 (Radial Basis Function Kernel, RBF核 / 高斯核)}：
+    $$ K(x_i, x_j) = \exp(-\gamma \|x_i - x_j\|^2) \quad (\gamma > 0) $$
+    注：参数 $\gamma$ 控制了局部影响的范围。由泰勒展开可知，RBF 核实际上将原始特征映射到了\textbf{无限维}的特征空间 $\mathcal{H}$ 中，是寻找复杂非线性边界极其强大的工具。
+\end{enumerate}
+
+
+
+
+
+
+\subsection*{9.3.3 支持向量机的预测与应用}
+
+通过求解引入核函数后的对偶二次规划问题，我们可以得到最优的拉格朗日乘子 $\alpha_i$ 和截距 $\beta_0$。对于任意新的测试观测值 $x$，其判别函数（Decision Function）为：
+\begin{equation}
+    f(x) = \beta_0 + \sum_{i \in S} \alpha_i y_i K(x_i, x)
+\end{equation}
+其中，$S$ 为所有满足 $\alpha_i > 0$ 的支持向量（Support Vectors）的指标集合。
+
+\begin{remark}[核技巧的本质]
+使用核技巧后，虽然决策边界在原始特征空间 $\mathcal{X}$ 中是高度非线性的，但在隐含的高维特征空间 $\mathcal{H}$ 中，它依然是一个完美的线性超平面。更妙的是，最终的决策函数仅仅是已知支持向量与新样本之间\textbf{核函数值的线性组合}。
+\end{remark}
+
+\vspace{2em}
+
+\section{多分类支持向量机 (SVMs with More Than Two Classes)}
+
+标准的 SVM 本质上是一个二分类器（Binary Classifier），即只能区分 $+1$ 和 $-1$。当响应变量包含 $K > 2$ 个类别时，我们需要借助拆分策略将多分类问题转化为多个二分类问题。最主流的两种策略如下：
+
+\subsection{1. 一对多策略 (One-Versus-All / One-Versus-Rest, OVA)}
+
+\textbf{核心思想}：每次将其中一个类别视为正类，将剩余的所有类别统统打包视为负类。
+\begin{itemize}
+    \item \textbf{模型训练}：共需拟合 $K$ 个单独的 SVM。设 $\beta_{0k}, \beta_{k}$ 为第 $k$ 个模型（区分类别 $k$ 与非 $k$）的超平面参数。
+    \item \textbf{预测机制}：对于测试观测值 $x^*$，将其代入 $K$ 个模型的决策函数中。分配到的类别为：
+    $$ \hat{y} = \arg\max_{k \in \{1,\dots,K\}} (\beta_{0k} + \beta_k^T x^*) $$
+    \textcolor{red}{(几何意义：即在确信分类正确的方向上，距离超平面最远的类，也就是确信度最高的类。)}
+\end{itemize}
+
+\subsection{2. 一对一策略 (One-Versus-One, OVO)}
+
+\textbf{核心思想}：让所有类别两两进行“单挑”。
+\begin{itemize}
+    \item \textbf{模型训练}：每次只抽取两个类别的数据训练一个 SVM，总共需要拟合 $\binom{K}{2} = \frac{K(K-1)}{2}$ 个 SVM 模型。
+    \item \textbf{预测机制}：对于测试观测值 $x^*$，让所有的 $\frac{K(K-1)}{2}$ 个模型对其进行分类预测。使用\textbf{投票机制 (Majority Voting)}：将 $x^*$ 分类到在所有成对比较中获胜次数最多的类别。
+\end{itemize}
+
+\begin{remark}[OVO 与 OVA 的选择]
+直觉上 OVO 需要训练的模型数量远多于 OVA。然而在实际 SVM 算法（如 `libsvm`）中，默认通常使用 OVO 策略。原因在于 SVM 的训练时间复杂度为 $O(N^2)$ 到 $O(N^3)$，OVA 每次都需要使用全量 $N$ 个样本，而 OVO 每次只使用两个类的样本（约 $2N/K$），当 $K$ 较大时，求解大量小型优化的总时间往往比求解少量巨型优化更短。
+\end{remark}
+
+\vspace{2em}
+
+\section{总结与联系：损失加惩罚框架}
+
+\subsection{与逻辑回归 (Logistic Regression) 的深刻联系}
+
+现代机器学习中，许多带正则化的线性模型都可以统一到\textbf{“经验风险最小化” (Empirical Risk Minimization, ERM)} 框架下，即：
+$$ \min_{\beta} \left\{ \sum_{i=1}^n L(y_i, f(x_i)) + \lambda P(\beta) \right\} $$
+
+重新审视我们之前推导的软间隔 SVM，将松弛变量 $\epsilon_i$ 的约束（$\epsilon_i \ge 0$ 且 $\epsilon_i \ge 1 - y_i f(x_i)$）直接代入目标函数，SVM 的优化目标可以写成如下无约束的等价形式：
+\begin{equation}
+    \min_{\beta_0, \beta} \left\{ \sum_{i=1}^n \max[0, 1 - y_i(\beta_0 + \beta^T x_i)] + \lambda \|\beta\|^2 \right\}
+\end{equation}
+
+\begin{theorem}[软间隔 SVM 的无约束等价形式推导]
+软间隔 SVM 可等价转化为带有 Hinge Loss 的经验风险最小化（ERM）问题。
+\end{theorem}
+
+\begin{proof}
+记 $f(x_i) = \beta_0 + \beta^T x_i$。软间隔 SVM 的惩罚式优化目标为：
+\begin{align}
+    \min_{\beta, \beta_0, \epsilon} \quad & \frac{1}{2}\|\beta\|^2 + C \sum_{i=1}^n \epsilon_i \label{eq:svm_obj} \\
+    \text{s.t.} \quad & \epsilon_i \ge 0, \quad \epsilon_i \ge 1 - y_i f(x_i) \quad (\forall i) \nonumber
+\end{align}
+
+\textbf{1. 约束合并：}由松弛变量的两个约束，立即可得其下界：
+\begin{equation}
+    \epsilon_i \ge \max(0, 1 - y_i f(x_i))
+\end{equation}
+
+\textbf{2. 极小化取界：}由于目标函数 \eqref{eq:svm_obj} 中对 $\epsilon_i$ 进行极小化（且 $C>0$），$\epsilon_i$ 必然紧贴其下界取值，即：
+\begin{equation}
+    \epsilon_i = \max(0, 1 - y_i f(x_i))
+\end{equation}
+
+\textbf{3. 无约束代换：}代回目标函数，消去 $\epsilon_i$ 与约束条件：
+\begin{equation}
+    \min_{\beta, \beta_0} \quad \frac{1}{2}\|\beta\|^2 + C \sum_{i=1}^n \max(0, 1 - y_i f(x_i))
+\end{equation}
+
+\textbf{4. 参数重定义：}将目标函数同除以常数 $C$，并令 $\lambda = \frac{1}{2C}$，即得标准 ERM 形式：
+\begin{equation}
+    \min_{\beta_0, \beta} \left\{ \sum_{i=1}^n \max[0, 1 - y_i f(x_i)] + \lambda \|\beta\|^2 \right\}
+\end{equation}
+证毕。
+\end{proof}
+
+这完美对应了 ERM 框架：
+\begin{itemize}
+    \item \textbf{第一项}：\textbf{损失函数 (Loss Function)}，这里称为 \textbf{Hinge Loss (合页损失)}。
+    \item \textbf{第二项}：\textbf{惩罚项 (Penalty)}，即 $L_2$ 正则化。这里的 $\lambda$ 对应于之前软间隔模型中预算参数的倒数 $\frac{1}{C}$ \textcolor{red}{(即 $C$ 越大，容忍度越高，等价于 $\lambda$ 惩罚力度越小)}。
+\end{itemize}
+
+作为对比回顾，其他经典模型的形式：
+\begin{align*}
+    & \text{Ridge 回归：} \quad \text{Loss: } \sum_{i=1}^n (y_i - (\beta_0 + \beta^T x_i))^2, \quad \text{Penalty: } \lambda \|\beta\|^2 \\
+    & \text{Lasso 回归：} \quad \text{Penalty: } \lambda \|\beta\|_1
+\end{align*}
+
+\subsection{Hinge Loss 与 Logistic Loss 的对比 (Fig 9.12)}
+
+为了让逻辑回归与 SVM 在同一坐标系下对比，我们设定逻辑回归的类别标签也为 $y_i \in \{-1, 1\}$，此时其负对数似然损失函数可以写为：
+$$ L_{Logistic} = \log(1 + e^{-y_i(\beta_0 + \beta^T x_i)}) $$
+
+以 $y_i(\beta_0 + \beta^T x_i)$（即函数间隔）为横坐标，Loss 为纵坐标：
+\begin{itemize}
+    \item \textbf{Hinge Loss (SVM)}：在横坐标 $\le 1$ 时表现为一条斜率为负的直线；在横坐标 $\ge 1$ 时（即安全落在正确一侧），损失\textbf{绝对为 $0$}。这是导致 SVM 具有\textbf{稀疏性}（绝大多数非支持向量的 $\alpha_i = 0$）的根本数学原因。
+    \item \textbf{Logistic Loss}：是一条平滑的渐近曲线，整体形状与 Hinge Loss 相似，但即使分类非常正确（横坐标很大），损失也永远不会真正达到 $0$（拥有微小的长尾）。这意味着逻辑回归中所有样本都在参与参数的梯度更新。
+\end{itemize}
+
+\vspace{1em}
+
+\subsection{如何选择？(When to use which?)}
+
+由于两者的损失函数形状极其相似，SVM 与带 Ridge 惩罚的逻辑回归在大部分数据集上的表现非常接近。选择的经验法则如下：
+
+\begin{itemize}
+    \item \textbf{当类别完全分离 (Well separated classes) 时}：\\
+    SVM (最大间隔分类器) 表现更好。在此情形下，如果不对 Logistic Regression 施加正则化，\textcolor{red}{为了让极大似然估计的概率无限逼近 0 或 1，其参数 $\beta$ 会发散并趋于无穷大}，导致模型极不稳定。
+    
+    \item \textbf{当类别重叠严重 (Overlapping classes / 存在噪声) 时}：\\
+    Logistic Regression，或使用较小 $C$（即较大的 $\lambda$ 惩罚）的软间隔 SVM 表现更好，因为它们能允许更多的 margin violations（误分类），提供更稳健的边界。
+\end{itemize}
+
+\begin{remark}[输出结果的差异]
+Logistic Regression 是概率生成模型，会直接给出预测的\textbf{后验概率 (Posterior Probabilities)}，这在许多需要评估风险的场景（如医疗、风控）中至关重要；而 SVM 是判别模型，它直接给出生硬的\textbf{类别决策边界 (Decision Boundary)}，无法直接输出规范化的概率（虽然可通过 Platt Scaling 等事后校准方法进行概率转换）。
+\end{remark}
+
+
+
+
 
 \end{document}
